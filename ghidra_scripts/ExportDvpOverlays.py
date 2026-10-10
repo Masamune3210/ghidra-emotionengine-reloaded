@@ -127,9 +127,12 @@ def collect_overlay_data(memory, symbol_table):
         
         # Parse vaddr for sorting blocks
         try:
-            vaddr_int = int(vaddr, 16) if vaddr.startswith('0x') else int(vaddr, 16)
+            vaddr_int = int(vaddr, 16)
+            if vaddr_int < 0:
+                raise ValueError("negative VU address")
         except ValueError:
-            vaddr_int = 0
+            printerr(f"Warning: Invalid VU address in overlay block: {block_name}")
+            continue
         
         # Add block for binary export
         overlays[filename_hash].add_block(vaddr_int, block)
@@ -215,17 +218,23 @@ def export_binary_file(overlay_data, output_path):
         
         with open(filepath, 'wb') as f:
             for vaddr_int, block in blocks:
-                # Get block size and create byte array
+                # VMA is an offset in VU memory. Simply concatenating chunks
+                # shifts symbols when sections are non-contiguous.
+                if vaddr_int < total_bytes:
+                    raise ValueError(
+                        f"Overlapping DVP blocks at offset 0x{vaddr_int:x}")
+                if vaddr_int > total_bytes:
+                    f.write(b'\x00' * (vaddr_int - total_bytes))
+                    total_bytes = vaddr_int
+
                 block_size = int(block.size)
                 byte_array = jpype.JByte[block_size]
-                
-                # Read bytes from the block
                 bytes_read = block.getBytes(block.start, byte_array)
-                
-                # Convert Java bytes (signed) to Python bytes (unsigned)
-                python_bytes = bytes([(b & 0xFF) for b in byte_array[:bytes_read]])
-                
-                # Write to file
+                if bytes_read != block_size:
+                    raise IOError(
+                        f"Short read from {block.name}: {bytes_read}/{block_size}")
+
+                python_bytes = bytes((b & 0xFF) for b in byte_array)
                 f.write(python_bytes)
                 total_bytes += bytes_read
         
