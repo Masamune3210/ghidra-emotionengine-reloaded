@@ -51,3 +51,13 @@ Audit the complete `ghidra-emotionengine-reloaded` repository, including ELF/mem
 - The memory map revealed `Write=false` for both RAM aliases; now fixed in the loader on `testing`.
 - For a database imported before this last change, change both RAM alias blocks' Write permission in Window > Memory Map. A rebuild/reimport is not necessary solely to adjust permissions.
 - Build and full decompiler/integration verification remain outstanding.
+
+## Follow-up: missing stdump.exe during SCUS_972.13 analysis (2026-10-10)
+
+- User's Ghidra log reported `os/win_x86_64/stdump.exe` missing when `StabsAnalyzer` ran.
+- Existing `os/download.sh` and tagged/unstable release workflows provision stdump v1.2.1, but a local `gradle buildExtension` did not, producing potentially incomplete installable ZIPs.
+- `build.gradle` now provides a `prepareStdump` task and makes `buildExtension` depend on it. It checks all three native release archives against pinned SHA-256 hashes before extraction; existing binaries are reused.
+- `SCUS_972.13` has a Metrowerks `.mwcats` section and ordinary ELF symbols, but no `.mdebug` section. STABS is inapplicable to this game. `StabsAnalyzer` now skips images without `.mdebug` unless a user supplies an explicit external ELF or stdump JSON path.
+- README and os/README describe the source-build provisioning and installed-extension repair.
+- To repair an already installed extension, either reinstall a complete newly built extension or copy the prepared `os/win_x86_64/stdump.exe` into the installed extension's corresponding path and restart Ghidra. No game reimport needed.
+- Verification: source inspection of analyzer skip condition, Gradle task dependency, release paths, and SHA values. **No Gradle build nor Windows runtime execution performed**.
