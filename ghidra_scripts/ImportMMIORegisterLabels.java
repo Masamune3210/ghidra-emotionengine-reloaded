@@ -33,17 +33,24 @@ public class ImportMMIORegisterLabels extends GhidraScript {
         for(Register register : registers) {
 			monitor.checkCanceled();
             if(register.getAddressSpace() == ram) {
-                Symbol[] oldSymbols = currentProgram.getSymbolTable().getSymbols(register.getAddress());
-                for(Symbol symbol : oldSymbols) {
-                    symbol.delete();
+                // Do not delete ELF, analysis, or user-defined symbols at this
+                // address. The register namespace can coexist with them.
+                boolean alreadyLabeled = false;
+                for (Symbol symbol : currentProgram.getSymbolTable().getSymbols(register.getAddress())) {
+                    if (symbol.getName().equals(register.getName()) &&
+                            symbol.getParentNamespace().equals(registerNamespace)) {
+                        alreadyLabeled = true;
+                        break;
+                    }
                 }
-                
-                currentProgram.getSymbolTable().createLabel(
-                    register.getAddress(),
-                    register.getName(),
-                    registerNamespace,
-                    SourceType.USER_DEFINED
-                );
+                if (!alreadyLabeled) {
+                    currentProgram.getSymbolTable().createLabel(
+                        register.getAddress(),
+                        register.getName(),
+                        registerNamespace,
+                        SourceType.USER_DEFINED
+                    );
+                }
             }
         }
     }
