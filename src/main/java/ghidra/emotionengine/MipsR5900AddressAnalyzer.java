@@ -147,10 +147,14 @@ public class MipsR5900AddressAnalyzer extends ConstantPropagationAnalyzer {
 			return;
 		}
 
-		// TODO: Use gp_value provided by MIPS .reginfo or dynamic attributes - check for Elf loader symbol
-		// see MIPS_ElfExtension.MIPS_GP_VALUE_SYMBOL
+		// Ghidra ELF imports may use either _mips_gp_value or the
+		// numbered _mips_gp0_value symbol (as in SCUS_972.13).
 		Symbol symbol = SymbolUtilities.getLabelOrFunctionSymbol(program, "_mips_gp_value",
 			err -> Msg.error(this, err));
+		if (symbol == null) {
+			symbol = SymbolUtilities.getLabelOrFunctionSymbol(program, "_mips_gp0_value",
+				err -> Msg.error(this, err));
+		}
 		if (symbol != null) {
 			gp_assumption_value = symbol.getAddress();
 			return;
