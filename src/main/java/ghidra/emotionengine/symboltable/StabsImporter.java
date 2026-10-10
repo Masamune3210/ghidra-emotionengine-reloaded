@@ -355,8 +355,8 @@ public class StabsImporter extends FlatProgramAPI {
 				StdumpAST.FunctionType type = (StdumpAST.FunctionType) def.type;
 				if(def.addressRange.valid()) {
 					// Find or create the function.
-					Address low = toAddr(def.addressRange.low);
-					Address high = toAddr(def.addressRange.high - 1);
+					Address low = toAddr(Integer.toUnsignedLong(def.addressRange.low));
+					Address high = toAddr(Integer.toUnsignedLong(def.addressRange.high) - 1);
 					AddressSet range = new AddressSet(low, high);
 					Function function = findOrCreateFunction(def, low, high, range);
 					if(function == null) {
@@ -377,7 +377,7 @@ public class StabsImporter extends FlatProgramAPI {
 					HashSet<String> parameterNames = fillInParameters(function, importer, def, type);
 					if(importer.outputLineNumbers) {
 						for(StdumpAST.LineNumberPair pair : def.lineNumbers) {
-							setEOLComment(toAddr(pair.address), "Line " + Integer.toString(pair.lineNumber));
+							setEOLComment(toAddr(Integer.toUnsignedLong(pair.address)), "Line " + Integer.toString(pair.lineNumber));
 						}
 					}
 					if(importer.markInlinedCode) {
@@ -473,9 +473,9 @@ public class StabsImporter extends FlatProgramAPI {
 		for(StdumpAST.SubSourceFile sub : def.subSourceFiles) {
 			if(!sub.relativePath.equals(lastPath) && sub.address >= def.addressRange.low && sub.address < def.addressRange.high) {
 				if(!sub.relativePath.equals(path)) {
-					setPreComment(toAddr(sub.address), "inlined from " + sub.relativePath);
+					setPreComment(toAddr(Integer.toUnsignedLong(sub.address)), "inlined from " + sub.relativePath);
 				} else {
-					setPreComment(toAddr(sub.address), "end of inlined section");
+					setPreComment(toAddr(Integer.toUnsignedLong(sub.address)), "end of inlined section");
 				}
 			}
 			lastPath = sub.relativePath;
@@ -520,10 +520,10 @@ public class StabsImporter extends FlatProgramAPI {
 			StdumpAST.SourceFile file = (StdumpAST.SourceFile) importer.ast.files.get(i);
 			for(StdumpAST.Node global_node : file.globals) {
 				StdumpAST.Variable global = (StdumpAST.Variable) global_node;
-				if(global.storage.globalAddress > -1) {
+				if(global.storage.globalAddress != -1) {
 					importer.currentFuncOrGlobalName = global.name;
 					DataType type = StdumpAST.replaceVoidWithUndefined1(global.type.createType(importer));
-					Address address = space.getAddress(global.storage.globalAddress);
+					Address address = space.getAddress(Integer.toUnsignedLong(global.storage.globalAddress));
 					try {
 						DataUtilities.createData(currentProgram, address, type, type.getLength(), false, ClearDataMode.CLEAR_ALL_CONFLICT_DATA);
 					} catch (CodeUnitInsertionException e) {
