@@ -73,10 +73,14 @@ public class EE_ElfExtension extends MIPS_ElfExtension {
 
 		super.processElf(helper, monitor);
 		ElfHeader elf = helper.getElfHeader();
-		try {
-			createMirrorBlocks(helper);
-		} catch (Exception e) {
-			helper.log(e);
+		// IRX/IOP ELF files also use this extension, but do not share
+		// the Emotion Engine's RAM and BIOS mirror layout.
+		if (EE_Util.isEmotionEngineCpu(helper.getProgram())) {
+			try {
+				createMirrorBlocks(helper);
+			} catch (Exception e) {
+				helper.log(e);
+			}
 		}
 		for (ElfSectionHeader shdr : elf.getSections()) {
 			monitor.checkCancelled();
