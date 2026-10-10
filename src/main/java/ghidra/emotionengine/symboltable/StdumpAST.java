@@ -180,9 +180,9 @@ public class StdumpAST {
 			case BOOL_8:
 				return BooleanDataType.dataType;
 			case UNSIGNED_16:
-				return ShortDataType.dataType;
-			case SIGNED_16:
 				return UnsignedShortDataType.dataType;
+			case SIGNED_16:
+				return ShortDataType.dataType;
 			case UNSIGNED_32:
 				return UnsignedIntegerDataType.dataType;
 			case SIGNED_32:
@@ -192,8 +192,9 @@ public class StdumpAST {
 			case UNSIGNED_64:
 				return UnsignedLongDataType.dataType;
 			case SIGNED_64:
-			case FLOAT_64:
 				return LongDataType.dataType;
+			case FLOAT_64:
+				return DoubleDataType.dataType;
 			case UNSIGNED_128:
 				return UnsignedInteger16DataType.dataType;
 			case SIGNED_128:
