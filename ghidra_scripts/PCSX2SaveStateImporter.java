@@ -32,17 +32,19 @@ public class PCSX2SaveStateImporter extends GhidraScript {
         FileSystemService fss = FileSystemService.getInstance();
         File file = askFile("Select a savestate", "open");
         FSRL fsrl = fss.getLocalFSRL(file);
-        GFileSystem gfs = fss.openFileSystemContainer(fsrl, monitor);
-        loadMainMemory(gfs);
-        monitor.initialize(PATHS.size());
-        monitor.setMessage("Loading Additional Memory...");
-        for (String path : PATHS.keySet()) {
-            monitor.checkCanceled();
-            MemoryBlock block = getMemoryBlock(PATHS.get(path));
-            if (block != null && gfs.lookup(path) != null) {
-                replaceBlock(block, getBuffer(gfs, path));
+        // openFileSystemContainer returns a caller-owned filesystem.
+        try (GFileSystem gfs = fss.openFileSystemContainer(fsrl, monitor)) {
+            loadMainMemory(gfs);
+            monitor.initialize(PATHS.size());
+            monitor.setMessage("Loading Additional Memory...");
+            for (String path : PATHS.keySet()) {
+                monitor.checkCanceled();
+                MemoryBlock block = getMemoryBlock(PATHS.get(path));
+                if (block != null && gfs.lookup(path) != null) {
+                    replaceBlock(block, getBuffer(gfs, path));
+                }
+                monitor.incrementProgress(1);
             }
-            monitor.incrementProgress(1);
         }
     }
 
