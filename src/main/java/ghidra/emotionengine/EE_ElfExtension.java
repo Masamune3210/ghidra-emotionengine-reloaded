@@ -140,39 +140,26 @@ public class EE_ElfExtension extends MIPS_ElfExtension {
 	}
 
 	private static void createMirrorBlocks(ElfLoadHelper helper) throws Exception {
-		// start end bytes description
-		// 0x00000000 - 0x01E84800 32000000 (main ram cached)
-		// 0x20000000 - 0x21E84800 32000000 (main ram uncached)
-		// 0x30100000 - 0x31E905C0 31000000 (main ram uncached & accelerated)
-		// 0x1C000000 - 0x1E000000 02000000 (iop ram)
-		// 0x1FC00000 - 0x1FFD0900 04000000 (BIOS/rom0 uncached)
-		// 0x9FC00000 - 0x9FFD0900 04000000 (BIOS/rom09 cached)
-		// 0xBFC00000 - 0xBFFD0900 04000000 (BIOS/rom0b uncached)
-		//
-		//
-		// KUSEG: 00000000h-7FFFFFFFh User segment
-		// KSEG0: 80000000h-9FFFFFFFh Kernel segment 0
-		// KSEG1: A0000000h-BFFFFFFFh Kernel segment 1
-		//
-		// Physical
-		// 00000000h 2 MB Main RAM (same as on PSX)
-		// 1D000000h SIF registers
-		// 1F800000h 64 KB Various I/O registers
-		// 1F900000h 1 KB SPU2 registers
-		// 1FC00000h 4 MB BIOS (rom0) - Same as EE BIOS
-		//
-		// FFFE0000h (KSEG2) Cache control
+		// EE main RAM is 32 MiB; the accelerated alias excludes its first 1 MiB.
+		final long mainRamSize = 0x02000000L;
+		final long acceleratedRamSize = 0x01F00000L;
+		final long biosRomSize = 0x00400000L;
+
 		Program program = helper.getProgram();
 		Memory mem = program.getMemory();
-		Address ram = helper.getDefaultAddress(0);
+		Address ram = helper.getDefaultAddress(0x00000000);
 		Address start = helper.getDefaultAddress(0x20000000);
-		mem.createByteMappedBlock("RAM(uncached)", start, ram, 32000000, false);
+		mem.createByteMappedBlock("RAM(uncached)", start, ram, mainRamSize, false);
+
+		// 0x30100000 aliases physical RAM at 0x00100000, not 0x00000000.
+		ram = helper.getDefaultAddress(0x00100000);
 		start = helper.getDefaultAddress(0x30100000);
-		mem.createByteMappedBlock("RAM(uncached_and_accelerated)", start, ram, 32000000, false);
+		mem.createByteMappedBlock("RAM(uncached_and_accelerated)", start, ram, acceleratedRamSize, false);
+
 		ram = helper.getDefaultAddress(0x1FC00000);
 		start = helper.getDefaultAddress(0x9FC00000);
-		mem.createByteMappedBlock("BIOS/rom09(cached)", start, ram, 04000000, false);
+		mem.createByteMappedBlock("BIOS/rom09(cached)", start, ram, biosRomSize, false);
 		start = helper.getDefaultAddress(0xBFC00000);
-		mem.createByteMappedBlock("BIOS/rom0b(uncached)", start, ram, 04000000, false);
+		mem.createByteMappedBlock("BIOS/rom0b(uncached)", start, ram, biosRomSize, false);
 	}
 }
