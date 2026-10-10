@@ -134,10 +134,8 @@ public class StabsImporter extends FlatProgramAPI {
 		} else {
 			// A custom JSON file was specified, so we don't need to run stdump.
 			File jsonFile = new File(options.overrideJsonPath);
-			try {
-				FileInputStream stream = new FileInputStream(jsonFile);
+			try (FileInputStream stream = new FileInputStream(jsonFile)) {
 				jsonOutput = stream.readAllBytes();
-				stream.close();
 			} catch (IOException e) {
 				log.appendException(e);
 				cleanupTemporaryFiles();
