@@ -112,7 +112,7 @@ public class EE_ElfRelocationHandler
 		}
 
 		// Treat global GOT_PAGE relocations as GOT_DISP
-		if (!elfSymbol.isLocal()) {
+		if (elfSymbol != null && !elfSymbol.isLocal()) {
 			if (type == EE_ElfRelocationType.R_MIPS_GOT_PAGE) {
 				type = EE_ElfRelocationType.R_MIPS_GOT_DISP;
 				addend = 0; // addend handled by GOT_OFST
@@ -314,13 +314,8 @@ public class EE_ElfRelocationHandler
 			case R_MIPS_HI16:
 			case R_MIPS16_HI16:
 			case R_MICROMIPS_HI16:
-				// Verify the we have GP
-				if (elfRelocationContext.getGPValue() == -1) {
-					markAsError(program, relocationAddress, type, symbolName, symbolIndex,
-						"Failed to perform GP-based relocation", log);
-					return RelocationResult.FAILURE;
-				}
-
+				// Ordinary HI16 relocations do not need a GP. _gp_disp is
+				// checked when its deferred HI16/LO16 pair is resolved.
 				// Defer processing of HI16 relocations until suitable LO16 relocation is processed
 				EE_DeferredRelocation hi16reloc = new EE_DeferredRelocation(type, elfSymbol,
 					relocationAddress, oldValue, (int) addend, isGpDisp);
