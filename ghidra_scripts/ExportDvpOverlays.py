@@ -116,15 +116,6 @@ def collect_overlay_data(memory, symbol_table):
         
         filename_hash = parsed['filename_hash']
         vaddr = parsed['vaddr']
-        overlay_blocks_found += 1
-        
-        println(f"Processing overlay block: {block_name}")
-        println(f"  Filename hash: {filename_hash}")
-        
-        # Initialize overlay data if needed
-        if overlays[filename_hash].filename_hash is None:
-            overlays[filename_hash].filename_hash = filename_hash
-        
         # Parse vaddr for sorting blocks
         try:
             vaddr_int = int(vaddr, 16)
@@ -133,7 +124,13 @@ def collect_overlay_data(memory, symbol_table):
         except ValueError:
             printerr(f"Warning: Invalid VU address in overlay block: {block_name}")
             continue
-        
+
+        overlay_blocks_found += 1
+        println(f"Processing overlay block: {block_name}")
+        println(f"  Filename hash: {filename_hash}")
+        if overlays[filename_hash].filename_hash is None:
+            overlays[filename_hash].filename_hash = filename_hash
+
         # Add block for binary export
         overlays[filename_hash].add_block(vaddr_int, block)
         
