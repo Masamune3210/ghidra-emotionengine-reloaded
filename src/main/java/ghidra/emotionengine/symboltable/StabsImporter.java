@@ -541,47 +541,51 @@ public class StabsImporter extends FlatProgramAPI {
 		}
 	}
 	
-	public static byte[] runStdump(String elfPath, TaskMonitor monitor, MessageLog log) throws InterruptedException, IOException {
+	public static byte[] runStdump(String elfPath, TaskMonitor monitor, MessageLog log)
+			throws InterruptedException, IOException {
 		String executableName = "stdump" + Platform.CURRENT_PLATFORM.getExecutableExtension();
 		File executable = Application.getOSFile(executableName);
-		String[] command = {
-				executable.getAbsolutePath(),
-				"print_json",
-				elfPath
-		};
-		Process process = Runtime.getRuntime().exec(command);
-		InputStream stdout = process.getInputStream();
-		InputStream stderr = process.getErrorStream();
-		BufferedReader errorReader = new BufferedReader(new InputStreamReader(stderr));
-		byte[] output = stdout.readAllBytes();
-		while(errorReader.ready()) {
-			log.appendMsg("STABS", stripColourCodes(errorReader.readLine()));
-		}
-		int returnCode = process.waitFor();
-		if(returnCode == 0) {
-			return output;
-		} else {
-			return null;
-		}
-		
-	}
-	
-	public static String stripColourCodes(String input) {
-		StringBuilder output = new StringBuilder();
-		for(int i = 0; i < input.length(); i++) {
-			if(i + 1 < input.length() && input.charAt(i) == '\033' && input.charAt(i + 1) == '[') {
-				if(i + 3 < input.length() && input.charAt(i + 3) == 'm') {
-					i += 3;
-				} else {
-					i += 4;
+		File errorFile = File.createTempFile("stdump_stderr_", ".log");
+		Process process = null;
+		try {
+			// Reading stdout and stderr sequentially can deadlock when the
+			// child fills stderr. Redirect stderr to a file during execution.
+			ProcessBuilder builder = new ProcessBuilder(
+				executable.getAbsolutePath(), "print_json", elfPath);
+			builder.redirectError(errorFile);
+			process = builder.start();
+			byte[] output;
+			try (InputStream stdout = process.getInputStream()) {
+				output = stdout.readAllBytes();
+			}
+			int returnCode = process.waitFor();
+			try (BufferedReader reader = new BufferedReader(new InputStreamReader(
+					new FileInputStream(errorFile)))) {
+				String line;
+				while ((line = reader.readLine()) != null) {
+					log.appendMsg("STABS", stripColourCodes(line));
 				}
-			} else {
-				output.append(input.charAt(i));
+			}
+			if (returnCode != 0) {
+				log.appendMsg("STABS", "stdump exited with status " + returnCode);
+				return null;
+			}
+			return output;
+		}
+		finally {
+			if (process != null && process.isAlive()) {
+				process.destroyForcibly();
+			}
+			if (!errorFile.delete()) {
+				errorFile.deleteOnExit();
 			}
 		}
-		return output.toString();
 	}
-	
+
+	public static String stripColourCodes(String input) {
+		return input.replaceAll("\\x1b\\[[0-9;]*m", "");
+	}
+
 	public final static DataTypeConflictHandler STABS_DATA_TYPE_CONFLICT_HANDLER = new DataTypeConflictHandler() {
 		@Override
 		public ConflictResult resolveConflict(DataType addedDataType, DataType existingDataType) {
