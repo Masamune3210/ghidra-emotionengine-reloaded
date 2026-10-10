@@ -67,3 +67,96 @@ eclipse.classpath.file.whenMerged {
 		entries.remove(entry);
 	}
 }
+
+
+// The STABS analyzer requires native ccc/stdump. Provision it for fresh local
+// buildExtension checkouts, just as release CI already does via os/download.sh.
+// Only install archives matching their pinned SHA-256 checksums.
+def stdumpVersion = 'v1.2.1'
+def stdumpBinaries = [
+    [platform: 'linux_x86_64', archive: 'linux', executable: 'stdump',
+     sha256: '7fc40cb63d32ac7b363733d9dab586f10e0c44afd79a4dc3bbe93c32d1d1b61e'],
+    [platform: 'mac_x86_64', archive: 'mac', executable: 'stdump',
+     sha256: 'ab7d71b4a5255196a42728d97332548c9fabd213c9959dfc1edba243aeab9328'],
+    [platform: 'win_x86_64', archive: 'windows', executable: 'stdump.exe',
+     sha256: '1824cf630c339918d4b5a5d8c331e20f2dc08511774cf0c878ae5b2037e8962f']
+]
+
+tasks.register('prepareStdump') {
+    group = 'build'
+    description = 'Provision checksum-verified native stdump executables'
+
+    doLast {
+        stdumpBinaries.each { spec ->
+            File destination = file("os/${spec.platform}/${spec.executable}")
+            if (destination.isFile() && destination.length() > 0) {
+                return // Already provisioned, for example by os/download.sh
+            }
+
+            String archiveName = "ccc_${stdumpVersion}_${spec.archive}.zip"
+            File archiveFile = new File(temporaryDir, archiveName)
+            archiveFile.parentFile.mkdirs()
+            try {
+                URL url = new URL("https://github.com/chaoticgd/ccc/releases/download/${stdumpVersion}/${archiveName}")
+                logger.lifecycle("Downloading verified stdump release: ${archiveName}")
+                def connection = url.openConnection()
+                connection.setConnectTimeout(30000)
+                connection.setReadTimeout(120000)
+                connection.setRequestProperty('User-Agent', 'ghidra-emotionengine-reloaded')
+                connection.getInputStream().withCloseable { input ->
+                    archiveFile.withOutputStream { output -> output << input }
+                }
+
+                def digest = java.security.MessageDigest.getInstance('SHA-256')
+                archiveFile.withInputStream { input ->
+                    byte[] buffer = new byte[8192]
+                    int count
+                    while ((count = input.read(buffer)) != -1) {
+                        digest.update(buffer, 0, count)
+                    }
+                }
+                if (!digest.digest().encodeHex().toString().equalsIgnoreCase(spec.sha256)) {
+                    throw new GradleException("SHA-256 mismatch for ${archiveName}")
+                }
+
+                new java.util.zip.ZipFile(archiveFile).withCloseable { zip ->
+                    def entry = zip.getEntry("ccc_${stdumpVersion}_${spec.archive}/${spec.executable}")
+                    if (entry == null || entry.isDirectory()) {
+                        throw new GradleException("Missing ${spec.executable} in ${archiveName}")
+                    }
+                    destination.parentFile.mkdirs()
+                    File staging = new File(destination.parentFile, destination.name + '.tmp')
+                    try {
+                        zip.getInputStream(entry).withCloseable { input ->
+                            staging.withOutputStream { output -> output << input }
+                        }
+                        if (staging.length() == 0) {
+                            throw new GradleException("Empty stdump executable in ${archiveName}")
+                        }
+                        java.nio.file.Files.move(staging.toPath(), destination.toPath(),
+                            java.nio.file.StandardCopyOption.REPLACE_EXISTING)
+                        if (spec.platform != 'win_x86_64') {
+                            destination.setExecutable(true, false)
+                        }
+                    }
+                    finally {
+                        staging.delete()
+                    }
+                }
+            }
+            catch (Exception e) {
+                throw new GradleException(
+                    "Unable to provision ${destination}: ${e.message}. " +
+                    "For offline builds, place stdump v1.2.1 there manually.", e)
+            }
+            finally {
+                archiveFile.delete()
+            }
+        }
+    }
+}
+
+// Do not let a successful local build silently omit the STABS helper.
+tasks.named('buildExtension') {
+    dependsOn(tasks.named('prepareStdump'))
+}
