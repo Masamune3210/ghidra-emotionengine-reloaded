@@ -35,7 +35,7 @@ def parse_sym_line(line):
     address_str, name_part = parts
     
     # Validate address format (hex string)
-    if not re.match(r'^[0-9A-Fa-f]+$', address_str):
+    if not re.fullmatch(r'(?:0[xX])?[0-9A-Fa-f]+', address_str):
         return None
     
     # Extract function name (remove size if present)
@@ -105,7 +105,7 @@ def import_sym_file():
                 try:
                     # Convert address string to Ghidra Address object
                     # Prepend "0x" if not present for proper parsing
-                    if not address_str.startswith('0x'):
+                    if not address_str.lower().startswith('0x'):
                         address_str = '0x' + address_str
                     
                     address = address_factory.getAddress(address_str)
