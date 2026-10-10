@@ -92,6 +92,15 @@ public class StabsAnalyzer extends AbstractAnalyzer {
 	@Override
 	public boolean added(Program program, AddressSetView set, TaskMonitor monitor, MessageLog log)
 			throws CancelledException {
+		// Some PS2 titles (e.g. Metrowerks-built SCUS_972.13) have .mwcats
+		// or ordinary ELF symbols, but no .mdebug STABS data. A manually
+		// enabled analyzer must not attempt to run stdump for those files.
+		if (program.getMemory().getBlock(".mdebug") == null &&
+				importOptions.overrideElfPath.isBlank() &&
+				importOptions.overrideJsonPath.isBlank()) {
+			log.appendMsg("STABS", "Skipped: no .mdebug section or external ELF/JSON override.");
+			return true;
+		}
 		importer = new StabsImporter(program, importOptions, monitor, log);
 		return importer.doImport();
 	}
