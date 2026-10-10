@@ -1,17 +1,39 @@
-# Repository correctness audit (2026-10-10)
+# Repository correctness audit — 2026-10-10
 
-## Purpose and scope
+## Purpose, base, and branch
 
-Review all of ghidra-emotionengine-reloaded: R5900 language/p-code and processor metadata; ELF loader and memory regions; relocation handlers; address/pre-analyzers; STABS and DVP handling; Ghidra scripts; packaging/CI. Fix demonstrable defects conservatively and preserve existing reverse-engineering behavior when uncertain.
+Audit the complete `ghidra-emotionengine-reloaded` repository, including ELF/memory/relocations, analyzers, STABS, R5900 SLEIGH and compiler metadata, DVP, scripts, and build/CI. This branch descends from `fix/ps2-memory-map-20261010`, preserving that branch's already-committed ROM0/IOP/EE alias fixes. `main` remains untouched. Review PR: https://github.com/Masamune3210/ghidra-emotionengine-reloaded/pull/1 (draft).
 
-## Starting state
+## Confirmed fixes
 
-Branched from `fix/ps2-memory-map-20261010`, retaining its three commits correcting ROM0, IOP RAM, and EE/BIOS aliases. `main` stays unchanged. Repository inventory contains 66 entries, including Java code, SLEIGH, and scripts.
+1. EE PSPEC: ROM0 4 MiB instead of 64 MiB; IOP RAM 2 MiB instead of 32 MiB. Correct range documentation.
+2. ELF extension: 4 MiB cached/uncached BIOS aliases instead of Java octal 1 MiB; EE uncached alias 32 MiB, accelerated alias 31 MiB backed by physical 0x00100000. Skip EE mirror creation for R3000/IOP ELF imports.
+3. Synthetic heap: treat section's limit as exclusive and skip invalid/empty spans.
+4. MIPS constant reference analyzer: recognize the numbered `_mips_gp0_value` symbol observed in SCUS_972.13.
+5. MIPS relocations: avoid null-symbol dereference in GOT_PAGE conversion; remove spurious global-pointer requirement from ordinary R_MIPS_HI16 (GP-dependent `_gp_disp` resolution checks GP at the deferred pair).
+6. STABS built-ins: correct reversed signed/unsigned 16-bit types and map FLOAT_64 to a double, not a 64-bit integer.
+7. STABS addresses: treat 32-bit function/global/comment locations as unsigned instead of rejecting addresses >= 0x80000000.
+8. STABS stdump: redirect stderr while reading stdout to avoid subprocess pipe deadlock, record nonzero exit status, handle ANSI color codes and close JSON streams.
+9. PCSX2 savestate importer: reject invalid/missing entries, enforce buffer bounds, avoid MMIO/mapped/overlay writes, and close streams plus caller-owned filesystem.
+10. MMIO label script: retain user/analysis/ELF symbols instead of deleting them; avoid duplicating already imported labels.
+11. SYM importer: accept hexadecimal addresses with or without `0x`/`0X` prefixes.
+12. DVP export: retain VMA gaps in binary output, fail on overlapping/short chunks, and reject invalid VU addresses from the block totals.
 
-## Status
+## Reviewed without behavior changes
 
-Audit in progress. No new correctness fixes or executable tests have been completed yet. This document is the audit handoff; update it as findings and verification emerge.
+- R5900 SLEIGH instruction groups, ABI/compiler specification, default register/MMIO descriptions, language/opinion definitions, patterns, and build metadata.
+- R5900 pre-analyzer and constant propagation; relocation types/context/handler; STABS AST/parser/importer; DVP overlay parser/symbol synchronizer; scripts and CI/packaging.
+- Existing TODOs around COP1 exact floating-point behavior, MIPS multi-GP relocation modeling, and disabled DVP overlay table importing remain unresolved. Do not treat those areas as fully verified without representative binaries/traces.
 
-## Next
+## Verification
 
-Inspect source by subsystem; patch confirmed errors; document unresolved findings; verify with static checks and build/tests where the environment permits.
+- Source-level checks of 17 key corrections passed on the audit branch after patching. These are **static checks, not compilation or live Ghidra integration tests**.
+- A draft PR was opened to request the repository's Ghidra 12.x workflow matrix. GitHub's Actions API reported zero workflow runs for this repository during the audit, so no compile/test success is claimed.
+- No local Ghidra installation or network Git clone was available in the execution environment. The SCUS_972.13 database was **not** modified; existing memory blocks remain as imported.
+
+## Next steps
+
+1. Run `gradle -PGHIDRA_INSTALL_DIR=<installed Ghidra root> test` and `gradle -PGHIDRA_INSTALL_DIR=<installed Ghidra root> buildExtension` (each terminal command on a single line), or enable GitHub Actions and inspect the PR test matrix.
+2. Fresh-import SCUS_972.13 and another PS2 ELF; inspect code instructions, heap bounds, aliases, recovered GP, symbol and STABS declarations.
+3. Load a PCSX2 savestate and exercise MMIO labels/.sym and DVP export on real samples, including noncontiguous and malformed blocks.
+4. Follow up separately on COP1 numerical/p-code fidelity, full relocation semantics, and the disabled DVP importer. Preserve conservative unresolved behavior until measured.
