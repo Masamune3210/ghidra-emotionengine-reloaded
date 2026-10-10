@@ -65,7 +65,7 @@ public class StdumpAST {
 		int high = -1;
 		
 		public boolean valid() {
-			return low > -1;
+			return low != -1;
 		}
 	}
 	
