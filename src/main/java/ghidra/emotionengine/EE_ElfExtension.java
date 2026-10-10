@@ -121,9 +121,12 @@ public class EE_ElfExtension extends MIPS_ElfExtension {
 		if (symbols.isEmpty()) {
 			return;
 		}
-		Address end = helper.getDefaultAddress(shdr.getAddress());
+		Address endExclusive = helper.getDefaultAddress(shdr.getAddress());
 		Address start = getMaxAddress(helper);
-		long size = end.subtract(start) + 1;
+		if (start == null || endExclusive.compareTo(start) <= 0) {
+			return; // Empty or invalid synthetic heap range
+		}
+		long size = endExclusive.subtract(start);
 		Memory mem = program.getMemory();
 		MemoryBlock block = mem.createUninitializedBlock("heap", start, size, false);
 		block.setExecute(shdr.isExecutable());
@@ -132,7 +135,7 @@ public class EE_ElfExtension extends MIPS_ElfExtension {
 		ProgramModule root = program.getListing().getDefaultRootModule();
 		if (root.getIndex("heap") == -1) {
 			ProgramFragment frag = root.createFragment("heap");
-			frag.move(start, end);
+			frag.move(start, endExclusive.subtract(1));
 		}
 	}
 
