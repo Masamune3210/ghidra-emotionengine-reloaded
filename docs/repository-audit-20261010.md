@@ -18,6 +18,7 @@ Audit the complete `ghidra-emotionengine-reloaded` repository, including ELF/mem
 10. MMIO label script: retain user/analysis/ELF symbols instead of deleting them; avoid duplicating already imported labels.
 11. SYM importer: accept hexadecimal addresses with or without `0x`/`0X` prefixes.
 12. DVP export: retain VMA gaps in binary output, fail on overlapping/short chunks, and reject invalid VU addresses from the block totals.
+13. Follow-up from live SCUS_972.13 memory-map verification: byte-mapped EE RAM aliases were incorrectly read-only. Set `Write` on both RAM mirror blocks so decompiler mutability reflects writable guest RAM. Keep both BIOS aliases read-only.
 
 ## Reviewed without behavior changes
 
@@ -29,7 +30,7 @@ Audit the complete `ghidra-emotionengine-reloaded` repository, including ELF/mem
 
 - Source-level checks of 17 key corrections passed on the audit branch after patching. These are **static checks, not compilation or live Ghidra integration tests**.
 - A draft PR was opened to request the repository's Ghidra 12.x workflow matrix. GitHub's Actions API reported zero workflow runs for this repository during the audit, so no compile/test success is claimed.
-- No local Ghidra installation or network Git clone was available in the execution environment. The SCUS_972.13 database was **not** modified; existing memory blocks remain as imported.
+- No local Ghidra installation or network Git clone was available in the execution environment. The SCUS_972.13 database was **not** modified by repository changes. Its fresh import confirmed the expected mapping ranges and the fixed heap end at 0x01F64DFF. The two existing RAM-alias block permissions still require manual correction in the open Ghidra database, or another fresh import using the updated extension.
 
 ## Next steps
 
@@ -43,3 +44,10 @@ Audit the complete `ghidra-emotionengine-reloaded` repository, including ELF/mem
 - Branch: `testing`; includes both the memory-map fix and repository audit changes. No PR or merge to `main` is needed to access these changes.
 - Current state: committed, with static source verification only; no Gradle/Ghidra integration run.
 - Next step: compile extension against Ghidra 12.1.3 and fresh-import SCUS_972.13, then investigate remaining COP1/relocation/DVP concerns.
+
+## Follow-up: live memory-map validation
+
+- Verified user-reported ranges: 4 MiB ROM0; 2 MiB IOP; 32 MiB uncached RAM; 31 MiB accelerated uncached alias backed by 0x00100000; 4 MiB each for BIOS aliases; synthetic heap ends at 0x01F64DFF.
+- The memory map revealed `Write=false` for both RAM aliases; now fixed in the loader on `testing`.
+- For a database imported before this last change, change both RAM alias blocks' Write permission in Window > Memory Map. A rebuild/reimport is not necessary solely to adjust permissions.
+- Build and full decompiler/integration verification remain outstanding.
