@@ -22,6 +22,27 @@ If you want to build the extension yourself, install `gradle` and run:
 gradle -PGHIDRA_INSTALL_DIR=/path/to/ghidra buildExtension
 ```
 
+`buildExtension` also runs `prepareStdump` to provision the pinned,
+SHA-256-verified **ccc v1.2.1** native `stdump` executables (Windows, Linux,
+and macOS) in `os/`. The STABS analyzer requires this helper. A fresh source
+checkout therefore needs internet access for its first build unless the
+executables were supplied manually beforehand. The packaged extension must
+contain `os/win_x86_64/stdump.exe` for Windows; a normal Java-only build
+without this file cannot import STABS symbols.
+
+For an **already installed** extension missing `stdump.exe`, rebuild and
+reinstall the extension, or copy the prepared
+`os/win_x86_64/stdump.exe` into the installed extension's
+`os/win_x86_64/` directory and restart Ghidra.
+
+## STABS and Metrowerks ELF files
+
+STABS metadata is read from an ELF `.mdebug` section. Metrowerks CATS
+metadata (`.mwcats`) and an ordinary ELF `.symtab` are **not** STABS. The
+analyzer skips files without `.mdebug` unless an external ELF or stdump JSON
+override is configured. Those files do not need `stdump` merely to disassemble
+or analyze their ordinary ELF symbols.
+
 ## Common Issues
 
 ### 7-Zip returned unsupported method
