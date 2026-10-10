@@ -2,7 +2,7 @@
 
 ## Purpose, base, and branch
 
-Audit the complete `ghidra-emotionengine-reloaded` repository, including ELF/memory/relocations, analyzers, STABS, R5900 SLEIGH and compiler metadata, DVP, scripts, and build/CI. This branch descends from `fix/ps2-memory-map-20261010`, preserving that branch's already-committed ROM0/IOP/EE alias fixes. `main` remains untouched. Review PR: https://github.com/Masamune3210/ghidra-emotionengine-reloaded/pull/1 (draft).
+Audit the complete `ghidra-emotionengine-reloaded` repository, including ELF/memory/relocations, analyzers, STABS, R5900 SLEIGH and compiler metadata, DVP, scripts, and build/CI. `testing` was created from current `main` (fcc5deac45d8f5c27c632bfe0db928630939676e), then fast-forwarded to include all commits from `audit/repository-correctness-20261010`, which already included `fix/ps2-memory-map-20261010`. The full fixes and analysis are in `testing`; `main` remains unchanged. The earlier draft PR is superseded by the direct testing branch.
 
 ## Confirmed fixes
 
@@ -37,3 +37,9 @@ Audit the complete `ghidra-emotionengine-reloaded` repository, including ELF/mem
 2. Fresh-import SCUS_972.13 and another PS2 ELF; inspect code instructions, heap bounds, aliases, recovered GP, symbol and STABS declarations.
 3. Load a PCSX2 savestate and exercise MMIO labels/.sym and DVP export on real samples, including noncontiguous and malformed blocks.
 4. Follow up separately on COP1 numerical/p-code fidelity, full relocation semantics, and the disabled DVP importer. Preserve conservative unresolved behavior until measured.
+
+## Testing branch handoff
+
+- Branch: `testing`; includes both the memory-map fix and repository audit changes. No PR or merge to `main` is needed to access these changes.
+- Current state: committed, with static source verification only; no Gradle/Ghidra integration run.
+- Next step: compile extension against Ghidra 12.1.3 and fresh-import SCUS_972.13, then investigate remaining COP1/relocation/DVP concerns.
