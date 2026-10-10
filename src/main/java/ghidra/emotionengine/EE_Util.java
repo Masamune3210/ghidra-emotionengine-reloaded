@@ -17,6 +17,10 @@ public class EE_Util {
 
 	private EE_Util() {}
 
+	public static boolean isEmotionEngineCpu(Program program) {
+		return EE_PROCESSOR_NAME.equals(program.getLanguage().getProcessor().toString());
+	}
+
 	public static boolean isEmotionEngine(Program program) {
 		return TARGET_PROCESSORS.contains(
 			program.getLanguage().getProcessor().toString());
