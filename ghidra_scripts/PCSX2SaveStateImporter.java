@@ -1,6 +1,7 @@
 // Load a pcsx2 savestate into the writeable memory blocks.
 //@category ghidra-emotionengine
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.util.Map;
@@ -10,7 +11,6 @@ import ghidra.formats.gfilesystem.FSRL;
 import ghidra.formats.gfilesystem.FileSystemService;
 import ghidra.formats.gfilesystem.GFile;
 import ghidra.formats.gfilesystem.GFileSystem;
-import ghidra.program.database.mem.MemoryBlockDB;
 import ghidra.program.model.address.Address;
 import ghidra.program.model.mem.MemoryBlock;
 
@@ -38,10 +38,9 @@ public class PCSX2SaveStateImporter extends GhidraScript {
         monitor.setMessage("Loading Additional Memory...");
         for (String path : PATHS.keySet()) {
             monitor.checkCanceled();
-            ByteBuffer buf = getBuffer(gfs, path);
             MemoryBlock block = getMemoryBlock(PATHS.get(path));
-            if (block != null) {
-                replaceBlock(block, buf);
+            if (block != null && gfs.lookup(path) != null) {
+                replaceBlock(block, getBuffer(gfs, path));
             }
             monitor.incrementProgress(1);
         }
@@ -49,10 +48,12 @@ public class PCSX2SaveStateImporter extends GhidraScript {
 
     private ByteBuffer getBuffer(GFileSystem gfs, String path) throws Exception {
         GFile gFile = gfs.lookup(path);
-        InputStream stream = gfs.getInputStream(gFile, monitor);
-        ByteBuffer buf = ByteBuffer.wrap(stream.readAllBytes());
-        buf.mark();
-        return buf;
+        if (gFile == null) {
+            throw new IOException("Missing savestate entry: " + path);
+        }
+        try (InputStream stream = gfs.getInputStream(gFile, monitor)) {
+            return ByteBuffer.wrap(stream.readAllBytes());
+        }
     }
 
     private void loadMainMemory(GFileSystem gfs) throws Exception {
@@ -67,18 +68,24 @@ public class PCSX2SaveStateImporter extends GhidraScript {
             if (end > maxAddress && end < MAX_ADDRESS && !block.isOverlay()) {
                 maxAddress = block.getEnd().getOffset();
             }
-            if (block.isWrite() && !block.isExecute()) {
-                // only load and replace writable, non-executable memory blocks
-                int offset = (int) block.getStart().getOffset();
-                if (offset < buf.limit()) {
-                    buf.position(offset);
-                    replaceBlock(block, buf);
-                }
+            // Savestate main memory contains only the EE RAM image. Do not
+            // overwrite hardware registers, byte-mapped mirrors or overlays.
+            long start = block.getStart().getOffset();
+            long size = block.getSize();
+            if (block.isWrite() && !block.isExecute() && !block.isMapped() &&
+                    !block.isOverlay() && start < buf.limit() &&
+                    size <= buf.limit() - start) {
+                buf.position((int) start);
+                replaceBlock(block, buf);
             }
             monitor.incrementProgress(1);
         }
-        Address otherAddress = toAddr(++maxAddress);
-        buf.position((int) maxAddress);
+        long otherStart = maxAddress + 1;
+        if (otherStart >= buf.limit()) {
+            return;
+        }
+        Address otherAddress = toAddr(otherStart);
+        buf.position((int) otherStart);
         if (buf.hasRemaining()) {
             byte[] bytes = new byte[buf.remaining()];
             buf.get(bytes);
@@ -92,7 +99,11 @@ public class PCSX2SaveStateImporter extends GhidraScript {
     }
 
     private void replaceBlock(MemoryBlock block, ByteBuffer buf) throws Exception {
-        byte[] bytes = new byte[(int) block.getSize()];
+        long size = block.getSize();
+        if (size > buf.remaining() || size > Integer.MAX_VALUE) {
+            throw new IOException("Savestate entry is too small for block " + block.getName());
+        }
+        byte[] bytes = new byte[(int) size];
         buf.get(bytes);
         if (!block.isInitialized()) {
 			block = currentProgram.getMemory().convertToInitialized(block, (byte) 0);
