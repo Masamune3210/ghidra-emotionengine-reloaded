@@ -156,12 +156,14 @@ public class EE_ElfExtension extends MIPS_ElfExtension {
 		Memory mem = program.getMemory();
 		Address ram = helper.getDefaultAddress(0x00000000);
 		Address start = helper.getDefaultAddress(0x20000000);
-		mem.createByteMappedBlock("RAM(uncached)", start, ram, mainRamSize, false);
+		MemoryBlock uncachedRam = mem.createByteMappedBlock("RAM(uncached)", start, ram, mainRamSize, false);
+		uncachedRam.setWrite(true);
 
 		// 0x30100000 aliases physical RAM at 0x00100000, not 0x00000000.
 		ram = helper.getDefaultAddress(0x00100000);
 		start = helper.getDefaultAddress(0x30100000);
-		mem.createByteMappedBlock("RAM(uncached_and_accelerated)", start, ram, acceleratedRamSize, false);
+		MemoryBlock acceleratedRam = mem.createByteMappedBlock("RAM(uncached_and_accelerated)", start, ram, acceleratedRamSize, false);
+		acceleratedRam.setWrite(true);
 
 		ram = helper.getDefaultAddress(0x1FC00000);
 		start = helper.getDefaultAddress(0x9FC00000);
