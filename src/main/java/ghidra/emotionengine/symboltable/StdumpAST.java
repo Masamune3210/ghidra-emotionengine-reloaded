@@ -203,6 +203,10 @@ public class StdumpAST {
 			case FLOAT_128:
 				return UnsignedInteger16DataType.dataType;
 			case UNKNOWN_PROBABLY_ARRAY:
+				importer.log.appendMsg("STABS", "stdump returned an unresolved builtin" +
+					(name != null ? " (" + name + ")" : "") +
+					" with size_bits=" + sizeBits + "; keeping undefined1 instead of guessing a type.");
+				return Undefined1DataType.dataType;
 			}
 			importer.log.appendMsg("STABS", "Bad builtin type created.");
 			return Undefined1DataType.dataType;
