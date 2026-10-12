@@ -59,6 +59,7 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
     private int anonymousTypeCounter;
     private int schemaVersion;
     private int placedBitfields, narrowedBitfieldWindows;
+    private int verifiedBitfields, layoutWarnings;
     private final Map<String, Integer> skipReasons = new LinkedHashMap<>();
 
     public Ccc2SymbolImporter(Program program, StabsImporter.ImportOptions options,
@@ -180,7 +181,9 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
             program.getOptions("CCC 2.x Symbols").setBoolean("Imported", true);
             logSkipBreakdown();
             warning("Bitfields placed=" + placedBitfields +
-                    " narrowedStorageWindows=" + narrowedBitfieldWindows);
+                    " verifiedPositions=" + verifiedBitfields +
+                    " narrowedStorageWindows=" + narrowedBitfieldWindows +
+                    " structureLayoutWarnings=" + layoutWarnings);
             warning("Imported types=" + appliedTypes + " functions=" + appliedFunctions
                     + " globals=" + appliedGlobals + " labels=" + appliedLabels
                     + " skipped=" + skipped + " (JSON v" + version + ")");
@@ -437,16 +440,98 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
         return path.toString();
     }
 
-    private void fillStructure(Structure structure, JsonObject node) {
-        for (JsonElement element : array(node, "base_classes")) {
-            if (element.isJsonObject()) applyStructureField(structure, element.getAsJsonObject(), "base");
-        }
-        for (JsonElement element : array(node, "fields")) {
-            if (element.isJsonObject()) applyStructureField(structure, element.getAsJsonObject(), "field");
+    private static final class ExpectedBitfield {
+        final String name;
+        final long startBit;
+        final int width;
+
+        ExpectedBitfield(String name, long startBit, int width) {
+            this.name = name;
+            this.startBit = startBit;
+            this.width = width;
         }
     }
 
-    private void applyStructureField(Structure structure, JsonObject field, String prefix) {
+    private void reportLayoutWarning(String structureName, String detail) {
+        layoutWarnings++;
+        if (layoutWarnings <= 12) {
+            warning("Structure layout warning [" + structureName + "]: " + detail);
+        }
+    }
+
+    private long componentFirstBit(DataTypeComponent component, boolean bigEndian) {
+        if (component.isBitFieldComponent()) {
+            BitFieldDataType bf = (BitFieldDataType) component.getDataType();
+            return Structure.BitOffsetComparator.getNormalizedBitfieldOffset(
+                    component.getOffset(), component.getLength(),
+                    bf.getBitSize(), bf.getBitOffset(), bigEndian);
+        }
+        return (long) component.getOffset() * 8;
+    }
+
+    private String conflictingMember(Structure structure, long firstBit, long lastBitExclusive) {
+        boolean bigEndian = program.getDataTypeManager().getDataOrganization().isBigEndian();
+        for (DataTypeComponent member : structure.getDefinedComponents()) {
+            long existingStart = componentFirstBit(member, bigEndian);
+            long existingWidth = member.isBitFieldComponent()
+                    ? ((BitFieldDataType) member.getDataType()).getBitSize()
+                    : (long) member.getLength() * 8;
+            if (existingWidth > 0 && firstBit < existingStart + existingWidth &&
+                    existingStart < lastBitExclusive) {
+                return (member.getFieldName() == null ? "<unnamed>" : member.getFieldName()) +
+                        " at bit " + existingStart;
+            }
+        }
+        return null;
+    }
+
+    private void auditStructureFields(Structure structure, JsonObject source,
+            List<ExpectedBitfield> expected, int sourceLength) {
+        if (sourceLength >= 0 && sourceLength != structure.getLength()) {
+            reportLayoutWarning(structure.getName(), "size changed from " +
+                    sourceLength + " to " + structure.getLength());
+        }
+        boolean bigEndian = program.getDataTypeManager().getDataOrganization().isBigEndian();
+        for (ExpectedBitfield field : expected) {
+            boolean matched = false;
+            for (DataTypeComponent component : structure.getDefinedComponents()) {
+                if (!component.isBitFieldComponent() ||
+                        !field.name.equals(component.getFieldName())) continue;
+                BitFieldDataType actual = (BitFieldDataType) component.getDataType();
+                if (actual.getBitSize() == field.width &&
+                        componentFirstBit(component, bigEndian) == field.startBit) {
+                    matched = true;
+                    break;
+                }
+            }
+            if (matched) {
+                verifiedBitfields++;
+            } else {
+                reportLayoutWarning(structure.getName(), "missing/moved bitfield " +
+                        field.name + " expected bit=" + field.startBit +
+                        " width=" + field.width);
+            }
+        }
+    }
+
+    private void fillStructure(Structure structure, JsonObject node) {
+        List<ExpectedBitfield> expected = new ArrayList<>();
+        int sourceLength = number(node, "size_bytes", -1);
+        for (JsonElement element : array(node, "base_classes")) {
+            if (element.isJsonObject()) {
+                applyStructureField(structure, element.getAsJsonObject(), "base", expected);
+            }
+        }
+        for (JsonElement element : array(node, "fields")) {
+            if (element.isJsonObject()) {
+                applyStructureField(structure, element.getAsJsonObject(), "field", expected);
+            }
+        }
+        auditStructureFields(structure, node, expected, sourceLength);
+    }
+
+    private void applyStructureField(Structure structure, JsonObject field, String prefix,
+            List<ExpectedBitfield> expected) {
         int offset = number(field, "offset_bytes", -1);
         if (offset < 0) return;
         JsonObject fieldType = field;
@@ -539,10 +624,19 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
             if (program.getDataTypeManager().getDataOrganization().isBigEndian()) {
                 shift = unitBits - shift - bits;
             }
+            String conflict = conflictingMember(structure, firstBit, firstBit + bits);
+            if (conflict != null) {
+                skip("bitfield overlaps existing structure field",
+                        safeFieldName(field, prefix, offset) + " at bit " +
+                        firstBit + " overlaps " + conflict);
+                return;
+            }
             try {
                 structure.insertBitFieldAt((int) storageByte, unitBytes, shift,
                         underlying, bits, safeFieldName(field, prefix, offset), "");
                 placedBitfields++;
+                expected.add(new ExpectedBitfield(
+                        safeFieldName(field, prefix, offset), firstBit, bits));
                 if (unitBytes != declaredUnitBytes) {
                     narrowedBitfieldWindows++;
                     if (narrowedBitfieldWindows <= 2) {
@@ -562,6 +656,14 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
         DataType type = resolveNode(fieldType);
         if (type == null || type.getLength() <= 0) return;
         if ((long) offset + type.getLength() > structure.getLength()) return;
+        String conflict = conflictingMember(structure,
+                (long) offset * 8, ((long) offset + type.getLength()) * 8);
+        if (conflict != null) {
+            skip("ordinary field overlaps existing structure field",
+                    safeFieldName(field, prefix, offset) + " at +0x" +
+                    Integer.toHexString(offset) + " overlaps " + conflict);
+            return;
+        }
         try {
             structure.replaceAtOffset(offset, type, type.getLength(),
                     safeFieldName(field, prefix, offset), "");
