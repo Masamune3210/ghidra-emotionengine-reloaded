@@ -64,6 +64,9 @@ public class IopIrxElfLoader extends ElfLoader {
     public void load(Program program, Loader.ImporterSettings settings)
             throws IOException, CancelledException {
         super.load(program, settings);
+        // Preserve ELF format identity for Ghidra analyzers that check
+        // ElfLoader.isElf(program), despite this loader's distinct UI name.
+        program.setExecutableFormat(ElfLoader.ELF_NAME);
         if (!IopIrxFormat.isIopElf(settings.provider().readBytes(0, 52))) {
             return;
         }
