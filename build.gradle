@@ -77,7 +77,7 @@ eclipse.classpath.file.whenMerged {
 def stdumpVersion = 'v2.1'
 def stdumpBinaries = [
     [platform: 'linux_x86_64', archive: 'linux-musl', executable: 'stdump', property: 'cccStdumpSha256Linux'],
-    [platform: 'mac_x86_64', archive: 'mac', executable: 'stdump', property: 'cccStdumpSha256Mac'],
+    [platform: 'mac_arm_64', archive: 'mac', executable: 'stdump', property: 'cccStdumpSha256Mac'],
     [platform: 'win_x86_64', archive: 'windows', executable: 'stdump.exe', property: 'cccStdumpSha256Windows']
 ]
 
