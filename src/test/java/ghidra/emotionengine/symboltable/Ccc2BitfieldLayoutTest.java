@@ -8,6 +8,7 @@ import ghidra.program.model.data.BitFieldDataType;
 import ghidra.program.model.data.DataTypeComponent;
 import ghidra.program.model.data.StructureDataType;
 import ghidra.program.model.data.UnsignedInteger16DataType;
+import ghidra.program.model.data.UnionDataType;
 import ghidra.program.model.data.UnsignedIntegerDataType;
 
 /**
@@ -50,6 +51,18 @@ public class Ccc2BitfieldLayoutTest {
         assertNull(Ccc2SymbolImporter.conflictingMember(structure, 64, 96));
         assertNotNull(Ccc2SymbolImporter.conflictingMember(structure, 16, 24));
         assertNotNull(Ccc2SymbolImporter.conflictingMember(structure, 32, 64));
+    }
+
+    @Test
+    public void unionBitfieldIsNotExpandedToFullUnderlyingType() throws Exception {
+        UnionDataType union = new UnionDataType("CccUnion");
+        DataTypeComponent member = union.addBitField(
+                UnsignedInteger16DataType.dataType, 32, "flags", "");
+        assertTrue(member.isBitFieldComponent());
+        assertEquals(32, ((BitFieldDataType) member.getDataType()).getBitSize());
+        assertEquals(16, ((BitFieldDataType) member.getDataType())
+                .getBaseDataType().getLength());
+        assertEquals(4, union.getLength());
     }
 
     @Test
