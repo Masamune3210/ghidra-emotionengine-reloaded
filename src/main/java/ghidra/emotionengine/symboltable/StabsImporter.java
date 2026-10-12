@@ -184,6 +184,10 @@ public class StabsImporter extends FlatProgramAPI {
 		importer.monitor = monitor;
 		importer.log = log;
 		importer.programTypeManager = program.getDataTypeManager();
+		String languageId = program.getLanguage().getLanguageID().getIdAsString();
+		importer.ps2Ilp32Abi = program.getDefaultPointerSize() == 4 &&
+			("r5900:LE:32:default".equals(languageId) ||
+			"MIPS:LE:32:default".equals(languageId));
 		importDataTypes(importer);
 		if(options.importFunctions) {
 			importFunctions(importer, program);
