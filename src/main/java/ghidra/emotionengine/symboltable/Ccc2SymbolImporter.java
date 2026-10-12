@@ -52,6 +52,7 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
     private JsonArray definitions;
     private DataType[] types;
     private final Set<Integer> activeTypes = new HashSet<>();
+    private final Set<Integer> completedTypes = new HashSet<>();
     private int appliedTypes, appliedFunctions, appliedGlobals, appliedLabels, skipped;
     private int anonymousTypeCounter;
     private int schemaVersion;
@@ -242,7 +243,7 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
     private DataType resolveType(int index) {
         if (index < 0 || index >= types.length) return null;
         DataType result = types[index];
-        if (activeTypes.contains(index)) return result;
+        if (completedTypes.contains(index) || activeTypes.contains(index)) return result;
         if (!definitions.get(index).isJsonObject()) return result;
         activeTypes.add(index);
         try {
@@ -269,6 +270,7 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
             return result;
         } finally {
             activeTypes.remove(index);
+            completedTypes.add(index);
         }
     }
 
