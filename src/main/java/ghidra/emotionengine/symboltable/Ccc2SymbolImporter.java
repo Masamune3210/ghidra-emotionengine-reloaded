@@ -676,14 +676,62 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
     }
 
     private void fillUnion(Union union, JsonObject node) {
+        int declaredBytes = number(node, "size_bytes", -1);
         for (JsonElement e : array(node, "fields")) {
             if (!e.isJsonObject()) continue;
             JsonObject field = e.getAsJsonObject();
+            String name = safeFieldName(field, "field", 0);
+            if ("bitfield".equals(string(field, "descriptor"))) {
+                int byteOffset = number(field, "offset_bytes", 0);
+                int bitOffset = number(field, "bitfield_offset_bits", 0);
+                int bits = number(field, "size_bits", -1);
+                DataType base = resolveNode(object(field, "underlying_type"));
+                // A UnionDataType bitfield is always at bit zero. Nonzero CCC
+                // offsets cannot be represented without an explicit wrapper,
+                // so never silently turn one into an ordinary union member.
+                if (byteOffset != 0 || bitOffset != 0 || bits <= 0 ||
+                        base == null || base.getLength() <= 0 ||
+                        (declaredBytes >= 0 && (long) bits > (long) declaredBytes * 8)) {
+                    skip("unsupported union bitfield placement", name +
+                            " offset=" + byteOffset + " bitOffset=" +
+                            bitOffset + " bits=" + bits + " base=" +
+                            (base == null ? "unresolved" : base.getName()));
+                    continue;
+                }
+                try {
+                    DataTypeComponent actual = union.addBitField(base, bits, name, "");
+                    if (actual.isBitFieldComponent() &&
+                            ((BitFieldDataType) actual.getDataType()).getBitSize() == bits) {
+                        placedBitfields++;
+                        verifiedBitfields++;
+                    } else {
+                        reportLayoutWarning(union.getName(),
+                                "union bitfield " + name + " was not retained as " +
+                                bits + " bits");
+                    }
+                } catch (InvalidDataTypeException | RuntimeException ex) {
+                    skip("union bitfield placement", name + ": " + ex.getMessage());
+                }
+                continue;
+            }
             DataType dt = resolveNode(field);
             if (dt == null || dt.getLength() <= 0) continue;
+            if (declaredBytes >= 0 && dt.getLength() > declaredBytes) {
+                skip("union member larger than declared size", name +
+                        " fieldBytes=" + dt.getLength() +
+                        " unionBytes=" + declaredBytes);
+                continue;
+            }
             try {
-                union.add(dt, dt.getLength(), safeFieldName(field, "field", 0), "");
-            } catch (RuntimeException ex) { skip("union field placement", safeFieldName(field, "field", 0) + ": " + ex.getMessage()); }
+                union.add(dt, dt.getLength(), name, "");
+            } catch (RuntimeException ex) {
+                skip("union field placement", name + ": " + ex.getMessage());
+            }
+        }
+        if (declaredBytes >= 0 && union.getLength() != declaredBytes) {
+            reportLayoutWarning(union.getName(),
+                    "declared size=" + declaredBytes + ", modeled size=" +
+                    union.getLength());
         }
     }
 
