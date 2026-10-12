@@ -2,15 +2,10 @@ package ghidra.emotionengine.symboltable;
 
 import static org.junit.Assert.*;
 
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.Set;
 
 import org.junit.Test;
 
 import ghidra.program.model.data.DataType;
-import ghidra.program.model.data.DataTypeConflictHandler;
-import ghidra.program.model.data.StandAloneDataTypeManager;
 import ghidra.program.model.data.StructureDataType;
 import ghidra.program.model.data.TypeDef;
 import ghidra.program.model.data.UnsignedIntegerDataType;
@@ -46,33 +41,26 @@ public class Ccc2TypedefAliasTest {
     }
 
     @Test
-    public void registersDistinctAliasesWithoutDiscardingTheirNames() {
-        StandAloneDataTypeManager manager =
-                new StandAloneDataTypeManager("Ccc2AliasRegistration");
-        try {
-            DataType root = Ccc2SymbolImporter.preserveNamedAlias(
-                    UnsignedIntegerDataType.dataType,
-                    "unsigned int", "builtin", true);
-            DataType alias = Ccc2SymbolImporter.preserveNamedAlias(
-                    root, "u_int", "type_name", true);
-            DataType second = Ccc2SymbolImporter.preserveNamedAlias(
-                    root, "u_long", "type_name", true);
+    public void distinctAliasesRetainNamesAndFourByteWidths() {
+        DataType unsignedInt = Ccc2SymbolImporter.preserveNamedAlias(
+                UnsignedIntegerDataType.dataType, "unsigned int", "builtin", true);
+        DataType unsignedLong = Ccc2SymbolImporter.preserveNamedAlias(
+                UnsignedIntegerDataType.dataType, "long unsigned int", "builtin", true);
+        DataType uInt = Ccc2SymbolImporter.preserveNamedAlias(
+                unsignedInt, "u_int", "type_name", true);
+        DataType uint = Ccc2SymbolImporter.preserveNamedAlias(
+                unsignedInt, "uint", "type_name", true);
+        DataType uLong = Ccc2SymbolImporter.preserveNamedAlias(
+                unsignedLong, "u_long", "type_name", true);
 
-            manager.addDataType(root, DataTypeConflictHandler.DEFAULT_HANDLER);
-            manager.addDataType(alias, DataTypeConflictHandler.DEFAULT_HANDLER);
-            manager.addDataType(second, DataTypeConflictHandler.DEFAULT_HANDLER);
-            Set<String> names = new HashSet<>();
-            Iterator<DataType> all = manager.getAllDataTypes();
-            while (all.hasNext()) {
-                DataType type = all.next();
-                if (type.getLength() == 4) names.add(type.getName());
-            }
-            assertTrue(names.toString(), names.contains("unsigned int"));
-            assertTrue(names.toString(), names.contains("u_int"));
-            assertTrue(names.toString(), names.contains("u_long"));
-        } finally {
-            manager.close();
-        }
+        assertEquals("u_int", uInt.getName());
+        assertEquals("uint", uint.getName());
+        assertEquals("u_long", uLong.getName());
+        assertEquals("unsigned int", ((TypeDef) uInt).getDataType().getName());
+        assertEquals("long unsigned int", ((TypeDef) uLong).getDataType().getName());
+        assertEquals(4, uInt.getLength());
+        assertEquals(4, uint.getLength());
+        assertEquals(4, uLong.getLength());
     }
 
     @Test
