@@ -28,7 +28,7 @@ Migrate directly to CCC 2.x / JSON formats 13–15. Do not repair the obsolete C
 - Inspected CCC upstream `symbol_json.cpp`, `ast_json.cpp`, `symbol_table.cpp` and `stdump.cpp` for fields, parser versions and command-line behavior.
 - Checked relevant Ghidra API source for function-type constructors, parameter definitions, listing data creation, comments, composite fields and signature source.
 - Compared the branch against `testing`; changes are limited to symbol importer, analyzer routing, provisioning and docs.
-- **Not compiled, integration-tested, or executed in Ghidra.** There is no local Ghidra installation or CCC executable available here, and no CI success is claimed.
+- **Historical initial state:** The first implementation was not compiled in this environment. Subsequent user tests confirmed Ghidra 12.1.3 compilation and a successful TESTSPU CCC v14 import; Ghidra 12.1.3 GitHub Actions unit tests have since passed. See dated sections below for the current status.
 
 ## Next step
 
@@ -145,3 +145,13 @@ Commits on `note-working/ccc2-symbol-import`:
 CI: New temporary branch-scoped workflow `.github/workflows/ccc2-symbol-validation.yml` runs `gradle ... test --tests ghidra.emotionengine.symboltable.Ccc2BitfieldLayoutTest` against Ghidra **12.1.3**. First run, https://github.com/Masamune3210/ghidra-emotionengine-reloaded/actions/runs/38311159489, **completed successfully**. It covered the initial regression test commits through `2b056ac`, not every subsequent diagnostic change. Later push-triggered runs should be checked separately and recorded before claiming the latest code passed.
 
 Still required before merge: a fresh TESTSPU import with the latest extension should report `verifiedPositions` and `structureLayoutWarnings`, and should show the `baseTypeChain` for suspicious 16-byte `unsigned int`. Compare representative full layouts with original CCC JSON. No direct source ELF/JSON was available for inspection in this environment, and no merge into `testing` was made.
+
+## Latest continuation validation and audit tool (2026-10-12)
+
+CI evidence: GitHub Actions `Validate CCC 2.x bitfield layout`, https://github.com/Masamune3210/ghidra-emotionengine-reloaded/actions/runs/38311406784, **succeeded** on Ghidra 12.1.3 at commit `a58249b4ea93ce47e765d1f9ab0efa5fec791177`. This run compiled the updated importer, JUnit test classes, and passed the targeted CCC bitfield test class (including union and 128-bit builtin regressions). Subsequent workflow revision `05b01a5fc7527f081356fdff0a94ef4d36383bf7` runs the **entire** repository JUnit suite against Ghidra 12.1.3. Verify its most recent non-cancelled run before claiming full-suite success; earlier push runs were cancelled as later commits arrived. `concurrency` now cancels superseded branch jobs; documentation and read-only script edits are excluded from the push trigger.
+
+Added read-only Ghidra script `ghidra_scripts/AuditCccBitfieldLayouts_20261012_v1.java` at commit `649b49bcb388dca639360390e00d828964408174`. Run it in Ghidra's Script Manager against an **existing** imported program. It lists all structure and union bitfields, their normalized bit start, width, offset, underlying datatype name and width, checks for out-of-bounds and overlapping structure member spans, and calls out wide base types. Does not mutate the program or require reimport. It enumerates all Ghidra datatypes, including those not created by CCC. It has not been run in Ghidra yet.
+
+Commit `96d46a2c1e96cf0c94c985da207e885a4faa3a04` prints up to 16 unmapped labels instead of just 2 so the *third* TESTSPU unresolved label can finally be identified, while most other categories retain two representative log messages.
+
+Before merge: compare the script output and latest importer log on TESTSPU, especially `verifiedPositions`, `structureLayoutWarnings`, the third unmapped label, and the suspicious 16-byte `unsigned int` `baseTypeChain`. Avoid assuming that correct insertions prove all source bitfields are semantically sound. Preserve the IRX-specific `0xff1f` linker symbols unresolved until their placement can be supported by a valid memory mapping. The branch remains intentionally unmerged.
