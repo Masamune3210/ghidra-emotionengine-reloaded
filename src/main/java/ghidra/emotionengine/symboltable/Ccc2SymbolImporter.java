@@ -459,7 +459,7 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
         }
     }
 
-    private long componentFirstBit(DataTypeComponent component, boolean bigEndian) {
+    static long componentFirstBit(DataTypeComponent component, boolean bigEndian) {
         if (component.isBitFieldComponent()) {
             BitFieldDataType bf = (BitFieldDataType) component.getDataType();
             return Structure.BitOffsetComparator.getNormalizedBitfieldOffset(
@@ -469,8 +469,8 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
         return (long) component.getOffset() * 8;
     }
 
-    private String conflictingMember(Structure structure, long firstBit, long lastBitExclusive) {
-        boolean bigEndian = program.getDataTypeManager().getDataOrganization().isBigEndian();
+    static String conflictingMember(Structure structure, long firstBit, long lastBitExclusive) {
+        boolean bigEndian = structure.getDataOrganization().isBigEndian();
         for (DataTypeComponent member : structure.getDefinedComponents()) {
             long existingStart = componentFirstBit(member, bigEndian);
             long existingWidth = member.isBitFieldComponent()
