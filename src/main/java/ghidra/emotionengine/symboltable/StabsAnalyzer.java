@@ -14,19 +14,11 @@ import ghidra.util.task.TaskMonitor;
 
 public class StabsAnalyzer extends AbstractAnalyzer {
 	
-	public static final String STABS_ANALYZER_NAME = "STABS";
+	public static final String STABS_ANALYZER_NAME = "CCC 2.x Symbols";
 	public static final String STABS_ANALYZER_DESCRIPTION =
-			"Parses STABS symbols from the .mdebug section to extract" +
-			" information about data types, functions and global variables." +
-			" Most of this process is handled by stdump, a C++ program which is" +
-			" bundled with releases of Ghidra Emotion Engine: Reloaded. If this" +
-			" file is missing, download stdump " + StdumpParser.SUPPORTED_STDUMP_VERSION +
-			" from the link below, and put it in the" +
-			" ghidra-emotionengine-reloaded/os directory (see further" +
-			" instructions there).\n\n" +
-			"For more information see:\n" +
-			"https://github.com/chaoticgd/ccc";
-	
+            "Imports functions, data types, globals, locals and labels from CCC 2.x " +
+            "symbol database JSON (v13-v15) using stdump json. Supports .mdebug, " +
+            ".debug (DWARF 1 in compatible CCC builds), .symtab and .sndata.";
 	public static final String OPTION_EMBED_BASE_CLASSES = "Embed Base Classes";
 	public static final String OPTION_EMBED_BASE_CLASSES_DESC =
 			"Embed fields from base classes in sub classes so that the type of the vtable pointer can be set correctly.";
@@ -78,10 +70,16 @@ public class StabsAnalyzer extends AbstractAnalyzer {
 	
 	@Override
 	public boolean getDefaultEnablement(Program program) {
-		MemoryBlock section = program.getMemory().getBlock(".mdebug");
-		return section != null;
+		return hasSymbols(program);
 	}
 	
+	private static boolean hasSymbols(Program program) {
+        return program.getMemory().getBlock(".mdebug") != null
+                || program.getMemory().getBlock(".debug") != null
+                || program.getMemory().getBlock(".symtab") != null
+                || program.getMemory().getBlock(".sndata") != null;
+    }
+
 	@Override
 	public boolean canAnalyze(Program program) {
 		Language language = program.getLanguage();
@@ -92,17 +90,12 @@ public class StabsAnalyzer extends AbstractAnalyzer {
 	@Override
 	public boolean added(Program program, AddressSetView set, TaskMonitor monitor, MessageLog log)
 			throws CancelledException {
-		// Some PS2 titles (e.g. Metrowerks-built SCUS_972.13) have .mwcats
-		// or ordinary ELF symbols, but no .mdebug STABS data. A manually
-		// enabled analyzer must not attempt to run stdump for those files.
-		if (program.getMemory().getBlock(".mdebug") == null &&
-				importOptions.overrideElfPath.isBlank() &&
-				importOptions.overrideJsonPath.isBlank()) {
-			log.appendMsg("STABS", "Skipped: no .mdebug section or external ELF/JSON override.");
-			return true;
-		}
-		importer = new StabsImporter(program, importOptions, monitor, log);
-		return importer.doImport();
+        if (!hasSymbols(program) && importOptions.overrideElfPath.isBlank()
+                && importOptions.overrideJsonPath.isBlank()) {
+            log.appendMsg("CCC 2.x", "Skipped: no supported symbol section or external ELF/JSON override.");
+            return true;
+        }
+        return new Ccc2SymbolImporter(program, importOptions, monitor, log).doImport();
 	}
 	
 	@Override
