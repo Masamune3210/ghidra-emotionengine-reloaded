@@ -22,26 +22,20 @@ If you want to build the extension yourself, install `gradle` and run:
 gradle -PGHIDRA_INSTALL_DIR=/path/to/ghidra buildExtension
 ```
 
-`buildExtension` also runs `prepareStdump` to provision the pinned,
-SHA-256-verified **ccc v1.2.1** native `stdump` executables (Windows, Linux,
-and macOS) in `os/`. The STABS analyzer requires this helper. A fresh source
-checkout therefore needs internet access for its first build unless the
-executables were supplied manually beforehand. The packaged extension must
-contain `os/win_x86_64/stdump.exe` for Windows; a normal Java-only build
-without this file cannot import STABS symbols.
+buildExtension also runs prepareStdump to install native CCC v2.1 stdump
+executables for Windows, Linux and Apple Silicon macOS. The symbol analyzer
+now understands CCC 2.x JSON (format versions 13 through 15). For the full
+native binary locations, architecture limitations, offline builds, and
+optional archive SHA-256 verification, see [os/README.md](os/README.md).
 
-For an **already installed** extension missing `stdump.exe`, rebuild and
-reinstall the extension, or copy the prepared
-`os/win_x86_64/stdump.exe` into the installed extension's
-`os/win_x86_64/` directory and restart Ghidra.
+## CCC 2.x symbols and Metrowerks ELF files
 
-## STABS and Metrowerks ELF files
-
-STABS metadata is read from an ELF `.mdebug` section. Metrowerks CATS
-metadata (`.mwcats`) and an ordinary ELF `.symtab` are **not** STABS. The
-analyzer skips files without `.mdebug` unless an external ELF or stdump JSON
-override is configured. Those files do not need `stdump` merely to disassemble
-or analyze their ordinary ELF symbols.
+The CCC 2.x analyzer imports symbol metadata from supported ELF sections
+including .mdebug (STABS), .symtab, .sndata and, in compatible CCC builds,
+.debug (DWARF 1). It can also accept an external CCC 2.x JSON document via
+the analysis options. Ordinary ELF symbols may already be imported by
+Ghidra; the analyzer avoids clearing defined code and user metadata.
+Metrowerks .mwcats is **not** handled by CCC and remains separate work.
 
 ## Common Issues
 
