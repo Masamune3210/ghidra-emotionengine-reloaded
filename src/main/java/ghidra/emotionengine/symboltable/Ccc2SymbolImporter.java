@@ -118,8 +118,10 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
     private void skip(String reason, String detail) {
         skipped++;
         int count = skipReasons.merge(reason, 1, Integer::sum);
-        // Retain representative failures without flooding the analysis log.
-        if (count <= 2 && detail != null && !detail.isBlank()) {
+        // Most categories only need representative failures. Unmapped labels
+        // are few and often linker sentinels: show enough to identify each.
+        int detailLimit = "unmapped labels".equals(reason) ? 16 : 2;
+        if (count <= detailLimit && detail != null && !detail.isBlank()) {
             warning("Skipped [" + reason + "]: " + detail);
         }
     }
