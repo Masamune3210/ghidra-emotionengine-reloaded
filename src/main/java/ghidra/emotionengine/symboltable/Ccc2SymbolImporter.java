@@ -398,7 +398,7 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
             try {
                 structure.insertBitFieldAt(offset, underlying.getLength(), bitOffset,
                         underlying, bits, safeFieldName(field, prefix, offset), "");
-            } catch (RuntimeException e) { skipped++; }
+            } catch (InvalidDataTypeException | RuntimeException e) { skipped++; warning("Bitfield at " + offset + ": " + e.getMessage()); }
             return;
         }
         DataType type = resolveNode(fieldType);
@@ -568,7 +568,7 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
                     ghidra.program.model.listing.CodeUnit code =
                             program.getListing().getCodeUnitContaining(address);
                     if (code != null && code.getComment(
-                            ghidra.program.model.listing.CodeUnit.EOL_COMMENT) == null) {
+                            ghidra.program.model.listing.CommentType.EOL) == null) {
                         setEOLComment(address, "Line " + pair.get(1).getAsInt());
                     }
                 } catch (RuntimeException e) { skipped++; }
@@ -587,7 +587,7 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
                     ghidra.program.model.listing.CodeUnit code =
                             program.getListing().getCodeUnitContaining(address);
                     if (code != null && code.getComment(
-                            ghidra.program.model.listing.CodeUnit.PRE_COMMENT) == null) {
+                            ghidra.program.model.listing.CommentType.PRE) == null) {
                         setPreComment(address, "inlined from " + sourcePath);
                     }
                 } catch (RuntimeException e) { skipped++; }
