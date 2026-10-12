@@ -69,28 +69,34 @@ eclipse.classpath.file.whenMerged {
 }
 
 
-// The STABS analyzer requires native ccc/stdump. Provision it for fresh local
-// buildExtension checkouts, just as release CI already does via os/download.sh.
-// Only install archives matching their pinned SHA-256 checksums.
-def stdumpVersion = 'v1.2.1'
+// CCC 2.1 is the latest tagged upstream release. The new reader also accepts
+// CCC development JSON up to v15. Use -PuseLocalCcc2Stdump for trusted,
+// preinstalled 2.x binaries instead of automatically downloading artifacts.
+// GitHub's v2.1 release metadata does not include SHA-256 digests; integrators
+// can enforce archive checksums with -PcccStdumpSha256Windows, Linux or Mac.
+def stdumpVersion = 'v2.1'
 def stdumpBinaries = [
-    [platform: 'linux_x86_64', archive: 'linux', executable: 'stdump',
-     sha256: '7fc40cb63d32ac7b363733d9dab586f10e0c44afd79a4dc3bbe93c32d1d1b61e'],
-    [platform: 'mac_x86_64', archive: 'mac', executable: 'stdump',
-     sha256: 'ab7d71b4a5255196a42728d97332548c9fabd213c9959dfc1edba243aeab9328'],
-    [platform: 'win_x86_64', archive: 'windows', executable: 'stdump.exe',
-     sha256: '1824cf630c339918d4b5a5d8c331e20f2dc08511774cf0c878ae5b2037e8962f']
+    [platform: 'linux_x86_64', archive: 'linux-musl', executable: 'stdump', property: 'cccStdumpSha256Linux'],
+    [platform: 'mac_x86_64', archive: 'mac', executable: 'stdump', property: 'cccStdumpSha256Mac'],
+    [platform: 'win_x86_64', archive: 'windows', executable: 'stdump.exe', property: 'cccStdumpSha256Windows']
 ]
 
 tasks.register('prepareStdump') {
     group = 'build'
-    description = 'Provision checksum-verified native stdump executables'
+    description = 'Provision CCC v2.1 native stdump executables'
 
     doLast {
         stdumpBinaries.each { spec ->
             File destination = file("os/${spec.platform}/${spec.executable}")
-            if (destination.isFile() && destination.length() > 0) {
-                return // Already provisioned, for example by os/download.sh
+            File stamp = file("os/${spec.platform}/stdump.version")
+            if (destination.isFile() && destination.length() > 0 &&
+                    (project.hasProperty('useLocalCcc2Stdump') ||
+                     (stamp.isFile() && stamp.text.trim() == stdumpVersion))) {
+                logger.lifecycle("Using CCC 2.x stdump at ${destination}")
+                return
+            }
+            if (project.hasProperty('useLocalCcc2Stdump')) {
+                throw new GradleException("Missing preinstalled CCC 2.x executable: ${destination}")
             }
 
             String archiveName = "ccc_${stdumpVersion}_${spec.archive}.zip"
@@ -98,7 +104,7 @@ tasks.register('prepareStdump') {
             archiveFile.parentFile.mkdirs()
             try {
                 URL url = new URL("https://github.com/chaoticgd/ccc/releases/download/${stdumpVersion}/${archiveName}")
-                logger.lifecycle("Downloading verified stdump release: ${archiveName}")
+                logger.lifecycle("Downloading CCC ${stdumpVersion}: ${archiveName}")
                 def connection = url.openConnection()
                 connection.setConnectTimeout(30000)
                 connection.setReadTimeout(120000)
@@ -111,52 +117,51 @@ tasks.register('prepareStdump') {
                 archiveFile.withInputStream { input ->
                     byte[] buffer = new byte[8192]
                     int count
-                    while ((count = input.read(buffer)) != -1) {
-                        digest.update(buffer, 0, count)
-                    }
+                    while ((count = input.read(buffer)) != -1) digest.update(buffer, 0, count)
                 }
-                if (!digest.digest().encodeHex().toString().equalsIgnoreCase(spec.sha256)) {
-                    throw new GradleException("SHA-256 mismatch for ${archiveName}")
+                String actual = digest.digest().encodeHex().toString()
+                String expected = project.findProperty(spec.property)?.toString()?.trim()
+                if (expected && !actual.equalsIgnoreCase(expected)) {
+                    throw new GradleException("SHA-256 mismatch for ${archiveName}: ${actual}")
+                }
+                if (!expected) {
+                    logger.warn("Unpinned CCC v2.1 SHA-256 ${archiveName}: ${actual}; " +
+                        "supply -P${spec.property}=... for a trusted pinned download")
                 }
 
                 new java.util.zip.ZipFile(archiveFile).withCloseable { zip ->
-                    def entry = zip.getEntry("ccc_${stdumpVersion}_${spec.archive}/${spec.executable}")
-                    if (entry == null || entry.isDirectory()) {
-                        throw new GradleException("Missing ${spec.executable} in ${archiveName}")
+                    def candidates = java.util.Collections.list(zip.entries()).findAll { entry ->
+                        !entry.isDirectory() && entry.name.replace('\\', '/').endsWith("/${spec.executable}")
+                    }
+                    if (candidates.size() != 1) {
+                        throw new GradleException("Expected one ${spec.executable} in ${archiveName}, got ${candidates.size()}")
                     }
                     destination.parentFile.mkdirs()
                     File staging = new File(destination.parentFile, destination.name + '.tmp')
                     try {
-                        zip.getInputStream(entry).withCloseable { input ->
+                        zip.getInputStream(candidates[0]).withCloseable { input ->
                             staging.withOutputStream { output -> output << input }
                         }
-                        if (staging.length() == 0) {
-                            throw new GradleException("Empty stdump executable in ${archiveName}")
-                        }
+                        if (staging.length() == 0) throw new GradleException("Empty stdump in ${archiveName}")
                         java.nio.file.Files.move(staging.toPath(), destination.toPath(),
                             java.nio.file.StandardCopyOption.REPLACE_EXISTING)
-                        if (spec.platform != 'win_x86_64') {
-                            destination.setExecutable(true, false)
-                        }
-                    }
-                    finally {
+                        if (spec.platform != 'win_x86_64') destination.setExecutable(true, false)
+                        stamp.text = stdumpVersion + '\n'
+                    } finally {
                         staging.delete()
                     }
                 }
-            }
-            catch (Exception e) {
-                throw new GradleException(
-                    "Unable to provision ${destination}: ${e.message}. " +
-                    "For offline builds, place stdump v1.2.1 there manually.", e)
-            }
-            finally {
+            } catch (Exception e) {
+                throw new GradleException("Unable to provision CCC v2.x ${destination}: ${e.message}. " +
+                    "For offline builds, provide trusted binaries and use -PuseLocalCcc2Stdump.", e)
+            } finally {
                 archiveFile.delete()
             }
         }
     }
 }
 
-// Do not let a successful local build silently omit the STABS helper.
+// Ensure new packages contain the CCC 2.x native executable.
 tasks.named('buildExtension') {
     dependsOn(tasks.named('prepareStdump'))
 }
