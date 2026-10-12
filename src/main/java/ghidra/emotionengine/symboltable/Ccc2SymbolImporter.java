@@ -59,6 +59,9 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
     private int anonymousTypeCounter;
     private int schemaVersion;
     private int placedBitfields, narrowedBitfieldWindows;
+    private int correctedLegacyUnsignedTypes, restoredOrdinaryFields;
+    private Set<String> legacyIopUnsignedNames = java.util.Collections.emptySet();
+    private final Set<Integer> correctedLegacyUnsignedIndices = new HashSet<>();
     private int verifiedBitfields, layoutWarnings;
     private final Map<String, Integer> skipReasons = new LinkedHashMap<>();
 
@@ -182,6 +185,8 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
             if (monitor.isCancelled()) return false;
             program.getOptions("CCC 2.x Symbols").setBoolean("Imported", true);
             logSkipBreakdown();
+            warning("Legacy IOP unsigned types corrected=" + correctedLegacyUnsignedTypes +
+                    " false bitfields restored as ordinary fields=" + restoredOrdinaryFields);
             warning("Bitfields placed=" + placedBitfields +
                     " verifiedPositions=" + verifiedBitfields +
                     " narrowedStorageWindows=" + narrowedBitfieldWindows +
@@ -199,6 +204,9 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
 
     private byte[] loadJson() throws IOException, InterruptedException, ExporterException {
         if (!options.overrideJsonPath.isBlank()) {
+            if (!options.overrideElfPath.isBlank()) {
+                inspectLegacyIopRanges(new File(options.overrideElfPath));
+            }
             return Files.readAllBytes(new File(options.overrideJsonPath).toPath());
         }
         File elf = null;
@@ -210,6 +218,7 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
             } else {
                 elf = new File(options.overrideElfPath);
             }
+            inspectLegacyIopRanges(elf);
             File tool = Application.getOSFile("stdump" +
                     Platform.CURRENT_PLATFORM.getExecutableExtension());
             if (tool == null || !tool.isFile()) {
@@ -243,6 +252,19 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
             }
         } finally {
             if (temporary && elf != null) Files.deleteIfExists(elf.toPath());
+        }
+    }
+
+    private void inspectLegacyIopRanges(File elf) {
+        try {
+            legacyIopUnsignedNames = CccIopLegacyUnsignedRanges.find(elf);
+            if (!legacyIopUnsignedNames.isEmpty()) {
+                warning("Legacy IOP STABS unsigned 0;-1 declarations detected: " +
+                        legacyIopUnsignedNames);
+            }
+        } catch (IOException e) {
+            warning("Unable to inspect IOP STABS signatures; no compatibility " +
+                    "correction will be applied: " + e.getMessage());
         }
     }
 
@@ -289,7 +311,17 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
             } else if (result instanceof EnumDataType) {
                 fillEnum((EnumDataType) result, node);
             } else if (result == null) {
-                result = resolveNode(node);
+                if (shouldCorrectLegacyIopUnsigned(name, node,
+                        legacyIopUnsignedNames, schemaVersion)) {
+                    // CCC 2.1 maps an old IOP-specific 0;-1 range to
+                    // int128. The original source ELF proves this named
+                    // integer alias belongs to a 32-bit IOP toolchain.
+                    result = UnsignedIntegerDataType.dataType;
+                    correctedLegacyUnsignedIndices.add(index);
+                    correctedLegacyUnsignedTypes++;
+                } else {
+                    result = resolveNode(node);
+                }
                 // Preserve named aliases when they refer to another data type.
                 if (result != null && options.importTypedefs && !string(item, "name").isBlank()
                         && !(result instanceof TypedefDataType) && !(result instanceof Structure)
@@ -303,6 +335,26 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
             activeTypes.remove(index);
             completedTypes.add(index);
         }
+    }
+
+    static boolean shouldCorrectLegacyIopUnsigned(String name, JsonObject node,
+            Set<String> names, int version) {
+        return version <= 14 && names.contains(name) &&
+                "builtin".equals(string(node, "descriptor")) &&
+                "128-bit integer".equals(string(node, "class"));
+    }
+
+    private boolean refersToCorrectedLegacyUnsigned(JsonObject node) {
+        Set<Integer> visited = new HashSet<>();
+        for (int i = 0; i < 64 && node != null; i++) {
+            if (!"type_name".equals(string(node, "descriptor"))) return false;
+            int index = number(node, "data_type", -1);
+            if (correctedLegacyUnsignedIndices.contains(index)) return true;
+            if (index < 0 || index >= definitions.size() || !visited.add(index) ||
+                    !definitions.get(index).isJsonObject()) return false;
+            node = object(definitions.get(index).getAsJsonObject(), "type");
+        }
+        return false;
     }
 
     private DataType resolveNode(JsonObject node) {
@@ -567,6 +619,20 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
                         " node=" + (source == null ? "null" : source));
                 return;
             }
+            // CCC 2.1 misidentified full-width ordinary IOP uint32 fields
+            // as bitfields because it resolved their source 0;-1 range to
+            // 128 bits. Only restore those whose underlying alias was
+            // positively identified in the original IOP ELF.
+            if (schemaVersion <= 14 &&
+                    refersToCorrectedLegacyUnsigned(
+                            object(field, "underlying_type")) &&
+                    bits == 32 && bitOffset == 0 && offset % 4 == 0) {
+                if (applyOrdinaryStructureField(
+                        structure, field, prefix, offset, underlying)) {
+                    restoredOrdinaryFields++;
+                }
+                return;
+            }
             int unitBytes = underlying.getLength();
             if (unitBytes <= 0 || unitBytes > 16) {
                 skip("invalid bitfield storage width",
@@ -666,18 +732,23 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
             return;
         }
         DataType type = resolveNode(fieldType);
+        applyOrdinaryStructureField(structure, field, prefix, offset, type);
+    }
+
+    private boolean applyOrdinaryStructureField(Structure structure,
+            JsonObject field, String prefix, int offset, DataType type) {
         if (type == null || type.getLength() <= 0) {
             skip("unresolved structure field type",
                     safeFieldName(field, prefix, offset) + " descriptor=" +
-                    string(fieldType, "descriptor"));
-            return;
+                    string(field, "descriptor"));
+            return false;
         }
         if ((long) offset + type.getLength() > structure.getLength()) {
             skip("ordinary field outside structure bounds",
                     safeFieldName(field, prefix, offset) + " at +0x" +
                     Integer.toHexString(offset) + " bytes=" + type.getLength() +
                     " structureBytes=" + structure.getLength());
-            return;
+            return false;
         }
         String conflict = conflictingMember(structure,
                 (long) offset * 8, ((long) offset + type.getLength()) * 8);
@@ -685,12 +756,18 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
             skip("ordinary field overlaps existing structure field",
                     safeFieldName(field, prefix, offset) + " at +0x" +
                     Integer.toHexString(offset) + " overlaps " + conflict);
-            return;
+            return false;
         }
         try {
             structure.replaceAtOffset(offset, type, type.getLength(),
                     safeFieldName(field, prefix, offset), "");
-        } catch (RuntimeException e) { skip("structure field placement", safeFieldName(field, prefix, offset) + " at +" + offset + ": " + e.getMessage()); }
+            return true;
+        } catch (RuntimeException e) {
+            skip("structure field placement",
+                    safeFieldName(field, prefix, offset) + " at +" +
+                    offset + ": " + e.getMessage());
+            return false;
+        }
     }
 
     private static String safeFieldName(JsonObject node, String prefix, int offset) {
