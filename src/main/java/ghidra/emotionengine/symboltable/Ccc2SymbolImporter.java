@@ -58,6 +58,7 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
     private int appliedTypes, appliedFunctions, appliedGlobals, appliedLabels, skipped;
     private int anonymousTypeCounter;
     private int schemaVersion;
+    private int placedBitfields, narrowedBitfieldWindows;
     private final Map<String, Integer> skipReasons = new LinkedHashMap<>();
 
     public Ccc2SymbolImporter(Program program, StabsImporter.ImportOptions options,
@@ -178,6 +179,8 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
             if (monitor.isCancelled()) return false;
             program.getOptions("CCC 2.x Symbols").setBoolean("Imported", true);
             logSkipBreakdown();
+            warning("Bitfields placed=" + placedBitfields +
+                    " narrowedStorageWindows=" + narrowedBitfieldWindows);
             warning("Imported types=" + appliedTypes + " functions=" + appliedFunctions
                     + " globals=" + appliedGlobals + " labels=" + appliedLabels
                     + " skipped=" + skipped + " (JSON v" + version + ")");
@@ -485,41 +488,71 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
                 return;
             }
 
-            // In CCC JSON v13/v14, offset_bytes is floor(field.offset_bits / 8)
-            // and bitfield_offset_bits is field.offset_bits % 8. CCC v15
-            // changed offset_bytes to the underlying storage unit's beginning,
-            // and bitfield_offset_bits to the bit index within that unit.
-            // Ghidra requires BOTH a storage-unit start and a shift within it.
-            int unitBits = unitBytes * 8;
+            // CCC JSON v13/v14 gives an absolute bit position within the
+            // containing structure, split into byte offset and bit remainder.
+            // CCC v15 instead gives the storage-unit start and bit offset.
+            // Ghidra's storage window need not have the same byte width as
+            // its underlying integer datatype. A 32-bit bitfield referencing
+            // a 128-bit integer can still occupy a 4/8-byte structure.
+            int declaredUnitBytes = unitBytes;
             long firstBit = (long) offset * 8 + bitOffset;
-            long storageByte;
-            int shift;
+            long storageByte = -1;
+            int shift = -1;
             if (schemaVersion < 15) {
-                storageByte = (firstBit / unitBits) * unitBytes;
-                shift = (int) (firstBit - storageByte * 8);
+                // Prefer the declared storage width. Narrow only when that
+                // width would cross the containing structure boundary or
+                // otherwise cannot contain the field at this bit position.
+                // Restrict alternatives to smaller power-of-two widths.
+                for (int candidate = unitBytes; candidate >= 1; candidate /= 2) {
+                    long candidateBits = (long) candidate * 8;
+                    long start = (firstBit / candidateBits) * candidate;
+                    long relativeBit = firstBit - start * 8;
+                    if (start + candidate <= structure.getLength() &&
+                            relativeBit + bits <= candidateBits) {
+                        storageByte = start;
+                        shift = (int) relativeBit;
+                        unitBytes = candidate;
+                        break;
+                    }
+                }
             } else {
                 storageByte = offset;
                 shift = bitOffset;
             }
 
-            // CCC's STABS offset is from the MSB on big-endian targets.
-            // Ghidra's bitOffset parameter instead denotes the shift from
-            // the least-significant end of the storage unit.
-            if (program.getDataTypeManager().getDataOrganization().isBigEndian()) {
-                shift = unitBits - shift - bits;
-            }
+            int unitBits = unitBytes * 8;
             if (storageByte < 0 || storageByte > Integer.MAX_VALUE ||
                     shift < 0 || bits > unitBits || shift + bits > unitBits ||
                     storageByte + unitBytes > structure.getLength()) {
                 skip("bitfield outside storage unit",
-                        safeFieldName(field, prefix, offset) + " at +" + offset +
-                        " width=" + bits + " unit=" + unitBytes + " shift=" + shift);
+                        safeFieldName(field, prefix, offset) + " at +0x" +
+                        Integer.toHexString(offset) + " width=" + bits +
+                        " baseType=" + underlying.getName() +
+                        " baseBytes=" + declaredUnitBytes +
+                        " structureBytes=" + structure.getLength() +
+                        " shift=" + shift);
                 return;
             }
 
+            // CCC STABS offsets are measured from the MSB on big-endian targets.
+            // Ghidra's parameter uses the bit shift from the LSB.
+            if (program.getDataTypeManager().getDataOrganization().isBigEndian()) {
+                shift = unitBits - shift - bits;
+            }
             try {
                 structure.insertBitFieldAt((int) storageByte, unitBytes, shift,
                         underlying, bits, safeFieldName(field, prefix, offset), "");
+                placedBitfields++;
+                if (unitBytes != declaredUnitBytes) {
+                    narrowedBitfieldWindows++;
+                    if (narrowedBitfieldWindows <= 2) {
+                        warning("Narrowed bitfield storage window " +
+                                safeFieldName(field, prefix, offset) + ": " +
+                                declaredUnitBytes + " -> " + unitBytes +
+                                " bytes (base type unchanged: " +
+                                underlying.getName() + ")");
+                    }
+                }
             } catch (InvalidDataTypeException | RuntimeException e) {
                 skip("bitfield placement rejected",
                         safeFieldName(field, prefix, offset) + ": " + e.getMessage());
