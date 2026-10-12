@@ -87,3 +87,16 @@ Commit `3165a14a28b5eef5e3e26189672a600b909ef37a` removes the unconditional v13/
 After the conversion commit `3165a14a28b5eef5e3e26189672a600b909ef37a`, the user reimported TESTSPU.bin and confirmed **the exact same 47 bitfields are still skipped**, now all under `invalid bitfield metadata` (examples `magic` and `attr` at offset 0). The 3 unmapped labels remain unchanged, total skipped=50 and imported types=73/functions=9/globals=16/labels=2. Therefore the previous conversion did **not** improve applied metadata: every bitfield is rejected *before* reaching offset calculation. No claim of successful bitfield recovery should be made.
 
 The guard was aggregating multiple possible failures (unresolved underlying type, invalid underlying length, zero/invalid field size, missing position). Commit `7e67367fc17ed9e02c6db2b362c5fce70afba486` now separates those categories and reports the underlying CCC JSON node or datatype name/length for representative cases. **No runtime output from this diagnostic commit yet.** Inspect the next run's `Skipped [unresolved bitfield underlying type]` / `invalid bitfield storage width` / `invalid bitfield size or position` breakdown and fix the actual schema or resolution mismatch. Do not guess a storage width or treat a short/missing field as valid without source evidence.
+
+## CCC v14 unresolved underlying types (2026-10-12)
+
+TESTSPU.bin Ghidra 12.1.3 log after `7e67367`: 47/47 bitfields fail `unresolved bitfield underlying type`; 3 unmapped labels unchanged. Representative CCC v14 nodes:
+
+- `magic` at +0: `{"descriptor":"type_name","size_bytes":16,"source":"reference","data_type":4}`, where definition #4 has descriptor `builtin`.
+- `attr` at +0: same `size_bytes:16` but points at definition #36 of descriptor `type_name`, a reference chain.
+
+Existing `builtin(String)` omitted two valid CCC v2.1 builtin classes: `128-bit integer` (unqualified) and `128-bit floating point`. Ghidra provides `Integer16DataType` and `Float16DataType`, and the 16-byte type_name nodes are consistent with a missing 128-bit mapping. **The actual class at definition #4 has not yet been observed in the Ghidra log; this is a strongly motivated hypothesis, not yet a confirmed diagnosis.**
+
+Commit `578fe23edfbf0e1a60e27187bb0695263c1cd262` adds the omitted canonical class mappings (unqualified 128-bit integer maps to signed 16-byte `Integer16DataType` in the absence of explicit signedness, floating 128 to `Float16DataType`). It also prints the full `type_name` reference chain for any remaining unresolved bitfields, making the final builtin class and alias loops visible. No Ghidra build or import result for this commit yet.
+
+Next: rebuild the extension and import a **fresh** TESTSPU program, then inspect the `CCC 2.x` skip categories and verify `magic`/`attr` bitfield layouts rather than relying solely on reduced skip counts.
