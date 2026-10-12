@@ -135,6 +135,7 @@ public class IopIrxElfLoader extends ElfLoader {
             }
             program.getOptions(OPT).setBoolean("ELF relocation sections present", hasRelocations);
             int total = 0, applied = 0, failed = 0, unsupported = 0, skipped = 0;
+            int partial = 0, unknown = 0;
             Iterator<Relocation> relocations = program.getRelocationTable().getRelocations();
             while (relocations.hasNext()) {
                 monitor.checkCancelled();
@@ -146,7 +147,8 @@ public class IopIrxElfLoader extends ElfLoader {
                     case FAILURE: failed++; break;
                     case UNSUPPORTED: unsupported++; break;
                     case SKIPPED: skipped++; break;
-                    default: break;
+                    case PARTIAL: partial++; break;
+                    case UNKNOWN: unknown++; break;
                 }
             }
             program.getOptions(OPT).setInt("Relocations recorded", total);
@@ -154,9 +156,11 @@ public class IopIrxElfLoader extends ElfLoader {
             program.getOptions(OPT).setInt("Relocations failed", failed);
             program.getOptions(OPT).setInt("Relocations unsupported", unsupported);
             program.getOptions(OPT).setInt("Relocations skipped", skipped);
+            program.getOptions(OPT).setInt("Relocations partial", partial);
+            program.getOptions(OPT).setInt("Relocations unknown", unknown);
             log.appendMsg("IOP IRX relocations: recorded=" + total + ", applied=" +
                 applied + ", failed=" + failed + ", unsupported=" + unsupported +
-                ", skipped=" + skipped);
+                ", skipped=" + skipped + ", partial=" + partial + ", unknown=" + unknown);
             if (hasRelocations) {
                 log.appendMsg("IOP IRX: Sony ET_IRX is not ET_REL; verify relocated " +
                     "instructions and data even when Ghidra reports applied relocations.");
