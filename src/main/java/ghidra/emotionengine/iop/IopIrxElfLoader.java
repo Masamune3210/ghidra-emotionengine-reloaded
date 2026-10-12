@@ -6,6 +6,7 @@ import java.util.Collections;
 import java.util.Iterator;
 
 import ghidra.app.util.bin.ByteProvider;
+import ghidra.app.util.bin.format.elf.ElfException;
 import ghidra.app.util.bin.format.elf.ElfHeader;
 import ghidra.app.util.bin.format.elf.ElfSectionHeader;
 import ghidra.app.util.importer.MessageLog;
@@ -23,7 +24,7 @@ import ghidra.program.model.data.DWordDataType;
 import ghidra.program.model.data.StructureDataType;
 import ghidra.program.model.data.WordDataType;
 import ghidra.program.model.lang.LanguageCompilerSpecPair;
-import ghidra.program.model.listing.CodeUnit;
+import ghidra.program.model.listing.CommentType;
 import ghidra.program.model.listing.Listing;
 import ghidra.program.model.listing.Program;
 import ghidra.program.model.mem.Memory;
@@ -161,7 +162,7 @@ public class IopIrxElfLoader extends ElfLoader {
                     "instructions and data even when Ghidra reports applied relocations.");
             }
         }
-        catch (IOException | RuntimeException e) {
+        catch (IOException | ElfException | RuntimeException e) {
             log.appendMsg("IOP IRX module metadata: " + e.getMessage());
         }
 
@@ -279,8 +280,8 @@ public class IopIrxElfLoader extends ElfLoader {
 
     private static void comment(Program program, Address address, String description) {
         Listing listing = program.getListing();
-        if (listing.getComment(CodeUnit.PLATE_COMMENT, address) == null) {
-            listing.setComment(address, CodeUnit.PLATE_COMMENT, description);
+        if (listing.getComment(CommentType.PLATE, address) == null) {
+            listing.setComment(address, CommentType.PLATE, description);
         }
     }
 
