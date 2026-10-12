@@ -26,6 +26,15 @@ public class Ccc2BitfieldLayoutTest {
     }
 
     @Test
+    public void resolvesEveryCcc128BitBuiltinClass() {
+        assertEquals(16, Ccc2SymbolImporter.builtin("128-bit unsigned integer").getLength());
+        assertEquals(16, Ccc2SymbolImporter.builtin("128-bit signed integer").getLength());
+        assertEquals(16, Ccc2SymbolImporter.builtin("128-bit integer").getLength());
+        assertEquals(16, Ccc2SymbolImporter.builtin("128-bit floating point").getLength());
+        assertNull(Ccc2SymbolImporter.builtin("unknown builtin class"));
+    }
+
+    @Test
     public void two32BitFieldsFitInEightByteStructureWithoutWideningBaseType()
             throws Exception {
         StructureDataType structure = new StructureDataType("CccPair", 8);
