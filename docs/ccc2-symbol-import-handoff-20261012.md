@@ -192,3 +192,23 @@ Validation of the uploaded ELF bytes (MD5 `6273b36b4200397fe43be82a06ff3e36`): b
 Latest CI after the correction: `https://github.com/Masamune3210/ghidra-emotionengine-reloaded/actions/runs/38322664395`, Ghidra 12.1.3 full `gradle test`, **PASS** (`BUILD SUCCESSFUL in 24s`). This validates compilation and synthetic source-signature tests but not Ghidra behavior on the actual ELF.
 
 At commit `71ba472255a10edca45f022b1d8df53b4b1317df`, added **read-only** `ghidra_scripts/AuditTestSpuLegacyUnsigned_20261012_v1.java`. It checks the four canonical 32-bit integer typedefs, `_libinfo.dummy` and associated offsets, `_libcaller.magic`, `EventFlagParam`, and the two legitimate `sceSifCmdHdr` bitfields. Run it on a **fresh Ghidra import** using the latest built extension. No full runtime import with the source-aware correction has yet been observed.
+
+## Corrected importer runtime verification and audit script fix (2026-10-12)
+
+User independently verified the source-aware correction on a fresh TESTSPU Ghidra 12.1.3 import:
+
+```text
+CCC 2.x> Legacy IOP STABS unsigned 0;-1 declarations detected: [unsigned int, long unsigned int]
+CCC 2.x> Skip reason: unmapped labels = 3
+CCC 2.x> Legacy IOP unsigned types corrected=2 false bitfields restored as ordinary fields=45
+CCC 2.x> Bitfields placed=2 verifiedPositions=2 narrowedStorageWindows=0 structureLayoutWarnings=0
+CCC 2.x> Imported types=81 functions=9 globals=16 labels=2 skipped=3 (JSON v14)
+```
+
+The only skipped symbols are `end` and `_end` at decimal 6312 (`0x18a8`), and `_gp` at decimal 38864 (`0x97d0`), matching the ELF loader's unmapped linker-value warnings. No normal structure field skips remain. This is conclusive *runtime* verification of the corrected 45 ordinary fields and 2 successfully placed narrow bitfields, subject to direct structure member audit.
+
+The first TESTSPU-specific script **failed to compile in Ghidra Script Manager**: `datatype()` calls `monitor.checkCanceled()` without declaring `CancelledException`; its callers `typeWidth()` and `structure()` also need a throws declaration. The subsequent `class not found` was only a cascade from failed Java compilation. Commit `381f12899c4a53f095ec245ea538894862f012c0` creates fixed `ghidra_scripts/AuditTestSpuLegacyUnsigned_20261012_v2.java` with correct checked-exception propagation and matching public class name; commit `69c67c8116deeea0210662ee58ae97e890a96b36` deletes the broken v1 from the branch. Do not suggest running the old v1 again.
+
+Commit `2eace1e77aad04061ae0b34eca6f99e024bc3c09` adds `compileCccAuditScripts` (JavaCompile) to Gradle and makes **both `test` and `buildExtension` depend on it**. This compiles v2 and the general CCC bitfield audit before packaging, catching script Java errors that normal extension compilation used to miss. A push-triggered 12.1.3 CI run for this new task was pending at time of this update; require a green run before claiming the scripts now compile.
+
+Next: use the v2 script against the already corrected TESTSPU database, or simply compile/install the extension and run v2. Its expected baseline is 4-byte unsigned aliases; `_libinfo.dummy` 8-byte array of 2 x uint32; `sceSifCmdHdr` with `psize` 8-bit and `dsize` 24-bit as the only bitfields, subsequent members ordinary.
