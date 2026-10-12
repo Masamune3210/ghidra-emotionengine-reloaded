@@ -70,9 +70,13 @@ public class StabsAnalyzer extends AbstractAnalyzer {
 	
 	@Override
 	public boolean getDefaultEnablement(Program program) {
-		return hasSymbols(program);
+		return hasSymbols(program) || isElf(program);
 	}
 	
+	private static boolean isElf(Program program) {
+        return program.getExecutableFormat().toLowerCase(java.util.Locale.ROOT).contains("elf");
+    }
+
 	private static boolean hasSymbols(Program program) {
         return program.getMemory().getBlock(".mdebug") != null
                 || program.getMemory().getBlock(".debug") != null
@@ -90,7 +94,7 @@ public class StabsAnalyzer extends AbstractAnalyzer {
 	@Override
 	public boolean added(Program program, AddressSetView set, TaskMonitor monitor, MessageLog log)
 			throws CancelledException {
-        if (!hasSymbols(program) && importOptions.overrideElfPath.isBlank()
+        if (!hasSymbols(program) && !isElf(program) && importOptions.overrideElfPath.isBlank()
                 && importOptions.overrideJsonPath.isBlank()) {
             log.appendMsg("CCC 2.x", "Skipped: no supported symbol section or external ELF/JSON override.");
             return true;
