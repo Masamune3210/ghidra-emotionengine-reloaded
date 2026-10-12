@@ -9,6 +9,8 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.Map;
+import java.util.LinkedHashMap;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -56,6 +58,7 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
     private int appliedTypes, appliedFunctions, appliedGlobals, appliedLabels, skipped;
     private int anonymousTypeCounter;
     private int schemaVersion;
+    private final Map<String, Integer> skipReasons = new LinkedHashMap<>();
 
     public Ccc2SymbolImporter(Program program, StabsImporter.ImportOptions options,
             TaskMonitor monitor, MessageLog log) {
@@ -110,6 +113,21 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
         log.appendMsg(TAG, message);
     }
 
+    private void skip(String reason, String detail) {
+        skipped++;
+        int count = skipReasons.merge(reason, 1, Integer::sum);
+        // Retain representative failures without flooding the analysis log.
+        if (count <= 2 && detail != null && !detail.isBlank()) {
+            warning("Skipped [" + reason + "]: " + detail);
+        }
+    }
+
+    private void logSkipBreakdown() {
+        for (Map.Entry<String, Integer> entry : skipReasons.entrySet()) {
+            warning("Skip reason: " + entry.getKey() + " = " + entry.getValue());
+        }
+    }
+
     public boolean doImport() {
         try {
             if (options.onlyRunOnce &&
@@ -135,7 +153,7 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
             prepareCompositeTypes();
             for (int i = 0; i < types.length && !monitor.isCancelled(); i++) {
                 try { resolveType(i); }
-                catch (RuntimeException e) { skipped++; warning("Type #" + i + ": " + e); }
+                catch (RuntimeException e) { skip("type resolution", "#" + i + ": " + e); }
             }
             for (int i = 0; i < types.length && !monitor.isCancelled(); i++) {
                 if (types[i] == null) continue;
@@ -148,7 +166,7 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
                             types[i], DataTypeConflictHandler.DEFAULT_HANDLER);
                     types[i] = resolved;
                     appliedTypes++;
-                } catch (RuntimeException e) { skipped++; warning("Register type #" + i + ": " + e); }
+                } catch (RuntimeException e) { skip("datatype registration", "#" + i + ": " + e); }
             }
             if (monitor.isCancelled()) return false;
             monitor.setMessage("CCC 2.x - Importing functions");
@@ -159,6 +177,7 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
             importLabels();
             if (monitor.isCancelled()) return false;
             program.getOptions("CCC 2.x Symbols").setBoolean("Imported", true);
+            logSkipBreakdown();
             warning("Imported types=" + appliedTypes + " functions=" + appliedFunctions
                     + " globals=" + appliedGlobals + " labels=" + appliedLabels
                     + " skipped=" + skipped + " (JSON v" + version + ")");
@@ -236,7 +255,7 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
                 } else if ("enum".equals(kind)) {
                     types[i] = new EnumDataType(name, size == 1 || size == 2 || size == 8 ? size : 4);
                 }
-            } catch (RuntimeException e) { skipped++; warning("Composite #" + i + ": " + e); }
+            } catch (RuntimeException e) { skip("composite allocation", "#" + i + ": " + e); }
         }
     }
 
@@ -390,7 +409,7 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
         if ("bitfield".equals(string(field, "descriptor"))) {
             // CCC schema v15 changed both bitfield offsets to storage-unit semantics.
             // Applying v14 offsets with the v15 interpretation corrupts structure layouts.
-            if (schemaVersion < 15) { skipped++; return; }
+            if (schemaVersion < 15) { skip("v13/v14 bitfields intentionally omitted", safeFieldName(field, prefix, offset) + " at +0x" + Integer.toHexString(offset)); return; }
             DataType underlying = resolveNode(object(field, "underlying_type"));
             int bits = number(field, "size_bits", -1);
             int bitOffset = number(field, "bitfield_offset_bits", -1);
@@ -398,7 +417,7 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
             try {
                 structure.insertBitFieldAt(offset, underlying.getLength(), bitOffset,
                         underlying, bits, safeFieldName(field, prefix, offset), "");
-            } catch (InvalidDataTypeException | RuntimeException e) { skipped++; warning("Bitfield at " + offset + ": " + e.getMessage()); }
+            } catch (InvalidDataTypeException | RuntimeException e) { skip("bitfield datatype rejected", "at +" + offset + ": " + e.getMessage()); }
             return;
         }
         DataType type = resolveNode(fieldType);
@@ -407,7 +426,7 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
         try {
             structure.replaceAtOffset(offset, type, type.getLength(),
                     safeFieldName(field, prefix, offset), "");
-        } catch (RuntimeException e) { skipped++; }
+        } catch (RuntimeException e) { skip("structure field placement", safeFieldName(field, prefix, offset) + " at +" + offset + ": " + e.getMessage()); }
     }
 
     private static String safeFieldName(JsonObject node, String prefix, int offset) {
@@ -423,7 +442,7 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
             if (dt == null || dt.getLength() <= 0) continue;
             try {
                 union.add(dt, dt.getLength(), safeFieldName(field, "field", 0), "");
-            } catch (RuntimeException ex) { skipped++; }
+            } catch (RuntimeException ex) { skip("union field placement", safeFieldName(field, "field", 0) + ": " + ex.getMessage()); }
         }
     }
 
@@ -434,7 +453,7 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
             String name = string(value, "name");
             if (name.isBlank()) continue;
             try { enumeration.add(name, value.get("value").getAsLong()); }
-            catch (RuntimeException ex) { skipped++; }
+            catch (RuntimeException ex) { skip("enum constant placement", name + ": " + ex.getMessage()); }
         }
     }
 
@@ -448,7 +467,7 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
             JsonObject symbol = element.getAsJsonObject();
             Address address = mappedAddress(symbol);
             String name = string(symbol, "name");
-            if (address == null || name.isBlank()) { skipped++; continue; }
+            if (address == null || name.isBlank()) { skip("unmapped/unnamed functions", name + " / address=" + string(symbol, "address")); continue; }
             try {
                 Function function = program.getFunctionManager().getFunctionAt(address);
                 if (function == null) {
@@ -463,10 +482,10 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
                         }
                     }
                     CreateFunctionCmd cmd = new CreateFunctionCmd(body, SourceType.ANALYSIS);
-                    if (!cmd.applyTo(program, monitor)) { skipped++; continue; }
+                    if (!cmd.applyTo(program, monitor)) { skip("function creation", name + " at " + address); continue; }
                     function = program.getFunctionManager().getFunctionAt(address);
                 }
-                if (function == null) { skipped++; continue; }
+                if (function == null) { skip("function missing after creation", name + " at " + address); continue; }
                 if (function.getComment() == null || function.getComment().isBlank()) {
                     String sourcePath = string(symbol, "relative_path");
                     if (!sourcePath.isBlank()) function.setComment(sourcePath);
@@ -544,13 +563,12 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
                             function.addLocalVariable(new LocalVariableImpl(
                                     localName, type, offset, program, SourceType.ANALYSIS),
                                     SourceType.ANALYSIS);
-                        } catch (Exception e) { skipped++; }
+                        } catch (Exception e) { skip("stack local insertion", localName + " at " + address + ": " + e.getMessage()); }
                     }
                 }
                 appliedFunctions++;
             } catch (Exception e) {
-                skipped++;
-                warning("Function " + name + " at " + address + ": " + e.getMessage());
+                skip("function update", name + " at " + address + ": " + e.getMessage());
             }
         }
     }
@@ -571,7 +589,7 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
                             ghidra.program.model.listing.CommentType.EOL) == null) {
                         setEOLComment(address, "Line " + pair.get(1).getAsInt());
                     }
-                } catch (RuntimeException e) { skipped++; }
+                } catch (RuntimeException e) { skip("source line annotation", "function=" + string(function, "name") + ": " + e.getMessage()); }
             }
         }
         if (options.markInlinedCode) {
@@ -590,7 +608,7 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
                             ghidra.program.model.listing.CommentType.PRE) == null) {
                         setPreComment(address, "inlined from " + sourcePath);
                     }
-                } catch (RuntimeException e) { skipped++; }
+                } catch (RuntimeException e) { skip("inline source annotation", "function=" + string(function, "name") + ": " + e.getMessage()); }
             }
         }
     }
@@ -602,7 +620,7 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
             JsonObject symbol = element.getAsJsonObject();
             Address address = mappedAddress(symbol);
             String name = string(symbol, "name");
-            if (address == null) { skipped++; continue; }
+            if (address == null) { skip("unmapped globals", name + " / address=" + string(symbol, "address")); continue; }
             try {
                 DataType type = resolveNode(object(symbol, "type"));
                 if (type != null && type.getLength() > 0 &&
@@ -610,11 +628,11 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
                         program.getListing().getInstructionContaining(address) == null) {
                     // Never clear existing instructions or user-defined data.
                     try { program.getListing().createData(address, type); }
-                    catch (Exception e) { skipped++; }
+                    catch (Exception e) { skip("global data declaration", name + " at " + address + ": " + e.getMessage()); }
                 }
                 createSafeLabel(address, name);
                 appliedGlobals++;
-            } catch (Exception e) { skipped++; warning("Global " + name + ": " + e.getMessage()); }
+            } catch (Exception e) { skip("global update", name + ": " + e.getMessage()); }
         }
     }
 
@@ -624,9 +642,9 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
             if (!element.isJsonObject()) continue;
             JsonObject symbol = element.getAsJsonObject();
             Address address = mappedAddress(symbol);
-            if (address == null) { skipped++; continue; }
+            if (address == null) { skip("unmapped labels", string(symbol, "name") + " / address=" + string(symbol, "address")); continue; }
             try { if (createSafeLabel(address, string(symbol, "name"))) appliedLabels++; }
-            catch (Exception e) { skipped++; }
+            catch (Exception e) { skip("label processing", string(symbol, "name") + ": " + e.getMessage()); }
         }
     }
 
@@ -639,6 +657,6 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
         try {
             program.getSymbolTable().createLabel(address, name, SourceType.ANALYSIS);
             return true;
-        } catch (Exception e) { skipped++; return false; }
+        } catch (Exception e) { skip("label rejected", name + " at " + address + ": " + e.getMessage()); return false; }
     }
 }
