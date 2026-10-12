@@ -139,6 +139,10 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
             }
             for (int i = 0; i < types.length && !monitor.isCancelled(); i++) {
                 if (types[i] == null) continue;
+                if (!options.importBuiltins && definitions.get(i).isJsonObject() &&
+                        "builtin".equals(string(object(definitions.get(i).getAsJsonObject(), "type"), "descriptor"))) {
+                    continue;
+                }
                 try {
                     DataType resolved = program.getDataTypeManager().addDataType(
                             types[i], DataTypeConflictHandler.DEFAULT_HANDLER);
