@@ -53,6 +53,7 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
     private DataType[] types;
     private final Set<Integer> activeTypes = new HashSet<>();
     private int appliedTypes, appliedFunctions, appliedGlobals, appliedLabels, skipped;
+    private int anonymousTypeCounter;
 
     public Ccc2SymbolImporter(Program program, StabsImporter.ImportOptions options,
             TaskMonitor monitor, MessageLog log) {
@@ -298,7 +299,7 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
                 int length = number(node, "size_bytes", -1);
                 if (length < 0 || length > 0x100000) return null;
                 StructureDataType structure = new StructureDataType(
-                        safeTypeName(string(node, "name"), activeTypes.size()), length,
+                        safeTypeName(string(node, "name"), ++anonymousTypeCounter), length,
                         program.getDataTypeManager());
                 fillStructure(structure, node);
                 return structure;
@@ -317,8 +318,28 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
                 fillEnum(enumeration, node);
                 return enumeration;
             }
-            // The function descriptor is consumed by importFunctions for actual signatures.
-            // A function-typed pointer is not equivalent to a void/data pointer.
+            case "function": {
+                DataType returnType = resolveNode(object(node, "return_type"));
+                // An absent return type is not evidence that the function returns void.
+                if (returnType == null) return null;
+                FunctionDefinitionDataType signature = new FunctionDefinitionDataType(
+                        "ccc2_function_type_" + (++anonymousTypeCounter));
+                signature.setReturnType(returnType);
+                if (node.has("parameters")) {
+                    List<ParameterDefinition> definitions = new ArrayList<>();
+                    for (JsonElement element : array(node, "parameters")) {
+                        if (!element.isJsonObject()) return null;
+                        JsonObject arg = element.getAsJsonObject();
+                        DataType argType = resolveNode(arg);
+                        if (argType == null || argType instanceof VoidDataType) return null;
+                        String argName = string(arg, "name");
+                        if (argName.isBlank()) argName = "param_" + definitions.size();
+                        definitions.add(new ParameterDefinitionImpl(argName, argType, null));
+                    }
+                    signature.setArguments(definitions.toArray(new ParameterDefinition[0]));
+                }
+                return signature;
+            }
             default: return null;
         }
     }
@@ -506,7 +527,7 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
                         program.getListing().getDefinedDataAt(address) == null &&
                         program.getListing().getInstructionContaining(address) == null) {
                     // Never clear existing instructions or user-defined data.
-                    try { createData(address, type); }
+                    try { program.getListing().createData(address, type); }
                     catch (Exception e) { skipped++; }
                 }
                 createSafeLabel(address, name);
