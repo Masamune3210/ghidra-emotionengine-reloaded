@@ -3,6 +3,7 @@ package ghidra.emotionengine.iop;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Iterator;
 
 import ghidra.app.util.bin.ByteProvider;
 import ghidra.app.util.bin.format.elf.ElfHeader;
@@ -27,6 +28,7 @@ import ghidra.program.model.listing.Listing;
 import ghidra.program.model.listing.Program;
 import ghidra.program.model.mem.Memory;
 import ghidra.program.model.mem.MemoryBlock;
+import ghidra.program.model.reloc.Relocation;
 import ghidra.program.model.symbol.RefType;
 import ghidra.program.model.symbol.SourceType;
 import ghidra.util.classfinder.ExtensionPointProperties;
@@ -131,9 +133,32 @@ public class IopIrxElfLoader extends ElfLoader {
                 log.appendMsg("IOP IRX module: " + mod.name + " v" + version(mod.version));
             }
             program.getOptions(OPT).setBoolean("ELF relocation sections present", hasRelocations);
+            int total = 0, applied = 0, failed = 0, unsupported = 0, skipped = 0;
+            Iterator<Relocation> relocations = program.getRelocationTable().getRelocations();
+            while (relocations.hasNext()) {
+                monitor.checkCancelled();
+                Relocation.Status status = relocations.next().getStatus();
+                total++;
+                switch (status) {
+                    case APPLIED:
+                    case APPLIED_OTHER: applied++; break;
+                    case FAILURE: failed++; break;
+                    case UNSUPPORTED: unsupported++; break;
+                    case SKIPPED: skipped++; break;
+                    default: break;
+                }
+            }
+            program.getOptions(OPT).setInt("Relocations recorded", total);
+            program.getOptions(OPT).setInt("Relocations applied", applied);
+            program.getOptions(OPT).setInt("Relocations failed", failed);
+            program.getOptions(OPT).setInt("Relocations unsupported", unsupported);
+            program.getOptions(OPT).setInt("Relocations skipped", skipped);
+            log.appendMsg("IOP IRX relocations: recorded=" + total + ", applied=" +
+                applied + ", failed=" + failed + ", unsupported=" + unsupported +
+                ", skipped=" + skipped);
             if (hasRelocations) {
-                log.appendMsg("IOP IRX: ELF relocation sections detected; review relocation " +
-                    "statuses. Sony ET_IRX != ET_REL and complete relocation support is not verified.");
+                log.appendMsg("IOP IRX: Sony ET_IRX is not ET_REL; verify relocated " +
+                    "instructions and data even when Ghidra reports applied relocations.");
             }
         }
         catch (IOException | RuntimeException e) {
