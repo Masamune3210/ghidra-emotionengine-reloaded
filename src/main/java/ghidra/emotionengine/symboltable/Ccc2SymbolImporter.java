@@ -1,7 +1,6 @@
 package ghidra.emotionengine.symboltable;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -187,7 +186,7 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
             Process process = null;
             try {
                 ProcessBuilder builder = new ProcessBuilder(
-                        tool.getAbsolutePath(), "json", "--compact", elf.getAbsolutePath());
+                        tool.getAbsolutePath(), "json", elf.getAbsolutePath());
                 builder.redirectError(stderr);
                 process = builder.start();
                 byte[] output;
@@ -258,8 +257,8 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
                 result = resolveNode(node);
                 // Preserve named aliases when they refer to another data type.
                 if (result != null && !string(item, "name").isBlank()
-                        && !(result instanceof TypeDef) && !(result instanceof Structure)
-                        && !(result instanceof Union) && !(result instanceof Enum)) {
+                        && !(result instanceof TypedefDataType) && !(result instanceof Structure)
+                        && !(result instanceof Union) && !(result instanceof ghidra.program.model.data.Enum)) {
                     result = new TypedefDataType(name, result);
                 }
                 types[index] = result;
@@ -396,7 +395,7 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
         }
     }
 
-    private void fillEnum(Enum enumeration, JsonObject node) {
+    private void fillEnum(ghidra.program.model.data.Enum enumeration, JsonObject node) {
         for (JsonElement entry : array(node, "constants")) {
             if (!entry.isJsonObject()) continue;
             JsonObject value = entry.getAsJsonObject();
