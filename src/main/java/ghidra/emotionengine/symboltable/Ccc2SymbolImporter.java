@@ -652,7 +652,9 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
                                 safeFieldName(field, prefix, offset) + ": " +
                                 declaredUnitBytes + " -> " + unitBytes +
                                 " bytes (base type unchanged: " +
-                                underlying.getName() + ")");
+                                underlying.getName() + ", baseTypeChain=" +
+                                describeTypeReferenceChain(
+                                        object(field, "underlying_type")) + ")");
                     }
                 }
             } catch (InvalidDataTypeException | RuntimeException e) {
