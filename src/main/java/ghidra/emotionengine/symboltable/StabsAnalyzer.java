@@ -14,7 +14,7 @@ import ghidra.util.task.TaskMonitor;
 
 public class StabsAnalyzer extends AbstractAnalyzer {
 	
-	public static final String STABS_ANALYZER_NAME = "CCC 2.x Symbols";
+	public static final String STABS_ANALYZER_NAME = "CCC 2x Symbols";
 	public static final String STABS_ANALYZER_DESCRIPTION =
             "Imports functions, data types, globals, locals and labels from CCC 2.x " +
             "symbol database JSON (v13-v15) using stdump json. Supports .mdebug, " +
