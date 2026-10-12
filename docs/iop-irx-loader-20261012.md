@@ -34,3 +34,12 @@ Sources: PS2SDK iop/kernel/include/irx.h (import/export layouts and magic); orig
 - Other unrecognized class values now identify their exact value in diagnostics. The importer catches Gson `JsonParseException` and logs the cause rather than throwing an analyzer task exception.
 - Added JUnit tests for `"error"`, established builtin classes, and an unrecognized class value. The actual TESTSPU stdump JSON is not available, so it is **not yet confirmed** that `"error"` was its offending class; if not, the next log should expose the exact value.
 - Verification: upstream producer/parser source comparison and committed tests. Ghidra 12.1.3 build and rerun of TESTSPU are still pending.
+
+## TESTSPU unresolved signedness/size follow-up (2026-10-12)
+
+- The crash fix allowed STABS to proceed; Ghidra now logged two unresolved builtins, `unsigned int` and `long unsigned int`, each with `size_bits=-1`, and previously degraded them to `undefined1`.
+- Reviewed `chaoticgd/ccc` stdump v1.2.1 `ccc/stabs.cpp`: `classify_range` recognizes a fixed list of exact numeric ranges, otherwise returns `UNKNOWN_PROBABLY_ARRAY`, serialized as `"error"` and with size unavailable. Without the raw TESTSPU STABS ranges, the exact range mismatch cannot be pinpointed.
+- Added conservative type recovery *only* for those two exact C names on 32-bit PS2 ABI imports (`r5900:LE:32:default` or `MIPS:LE:32:default` with four-byte pointers): both are known 32-bit unsigned integers under ILP32. Explicit sizes other than unknown (-1) or 32 are rejected. Unrecognized names retain the `undefined1` fallback. Each recovered type produces a clear STABS log.
+- Added regression tests for both recoverable names, an explicit contradictory 64-bit size, unrelated names and null.
+- The fix does not change an existing Ghidra database retroactively. Use a fresh TESTSPU import to verify correct recovered builtins; if retaining existing work, rerun STABS manually with caution around the "Only Run Once" guard and possible datatype conflicts.
+- Verification: source review and committed tests; **no successful Gradle build or Ghidra runtime rerun yet**. The current TESTSPU language ID is unknown; if it is an R6 mis-selection the ABI-gated recovery will intentionally *not* fire until language selection is corrected.
