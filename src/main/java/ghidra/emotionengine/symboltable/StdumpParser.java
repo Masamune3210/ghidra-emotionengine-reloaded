@@ -74,7 +74,7 @@ public class StdumpParser {
 			} else if(descriptor.equals("builtin")) {
 				StdumpAST.BuiltIn builtin = new StdumpAST.BuiltIn();
 				String builtinClass = object.get("class").getAsString();
-				builtin.builtinClass = readBuiltInClass(builtin, builtinClass);
+				builtin.builtinClass = readBuiltInClass(builtinClass);
 				node = builtin;
 			} else if(descriptor.equals("function_definition")) {
 				StdumpAST.FunctionDefinition function = new StdumpAST.FunctionDefinition();
@@ -250,7 +250,7 @@ public class StdumpParser {
 			}
 		}
 		
-		private StdumpAST.BuiltInClass readBuiltInClass(StdumpAST.BuiltIn builtin, String builtinClass) throws JsonParseException {
+		private StdumpAST.BuiltInClass readBuiltInClass(String builtinClass) throws JsonParseException {
 			if(builtinClass.equals("void")) { return StdumpAST.BuiltInClass.VOID; }
 			else if(builtinClass.equals("8-bit unsigned integer")) { return StdumpAST.BuiltInClass.UNSIGNED_8; }
 			else if(builtinClass.equals("8-bit signed integer")) { return StdumpAST.BuiltInClass.SIGNED_8; }
@@ -268,7 +268,10 @@ public class StdumpParser {
 			else if(builtinClass.equals("128-bit signed integer")) { return StdumpAST.BuiltInClass.SIGNED_128; }
 			else if(builtinClass.equals("128-bit integer")) { return StdumpAST.BuiltInClass.UNQUALIFIED_128; }
 			else if(builtinClass.equals("128-bit floating point")) { return StdumpAST.BuiltInClass.FLOAT_128; }
-			else { throw new JsonParseException("Bad builtin class."); }
+			// stdump v1.2.1 writes "error" for UNKNOWN_PROBABLY_ARRAY.
+			// Preserve an unresolved type instead of aborting the entire AST.
+			else if(builtinClass.equals("error")) { return StdumpAST.BuiltInClass.UNKNOWN_PROBABLY_ARRAY; }
+			else { throw new JsonParseException("Unrecognized stdump builtin class: " + builtinClass); }
 		}
 		
 		private StdumpAST.VariableStorage readVariableStorage(JsonObject src) {
