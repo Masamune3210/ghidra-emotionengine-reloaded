@@ -5,6 +5,10 @@ on:
     branches: ["note-working/ccc2-symbol-import"]
   workflow_dispatch:
 
+concurrency:
+  group: ccc2-validation-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
