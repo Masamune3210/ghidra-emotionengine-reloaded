@@ -313,7 +313,7 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
             } else if (result == null) {
                 if (shouldCorrectLegacyIopUnsigned(name, node,
                         legacyIopUnsignedNames, schemaVersion)) {
-                    // CCC 2.1 maps an old IOP-specific 0;-1 range to
+                    // CCC 2.1 maps a traditional GCC/STABS 0;-1 range to
                     // int128. The original source ELF proves this named
                     // integer alias belongs to a 32-bit IOP toolchain.
                     result = UnsignedIntegerDataType.dataType;
