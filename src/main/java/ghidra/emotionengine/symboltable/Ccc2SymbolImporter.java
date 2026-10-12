@@ -259,7 +259,7 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
             } else if (result == null) {
                 result = resolveNode(node);
                 // Preserve named aliases when they refer to another data type.
-                if (result != null && !string(item, "name").isBlank()
+                if (result != null && options.importTypedefs && !string(item, "name").isBlank()
                         && !(result instanceof TypedefDataType) && !(result instanceof Structure)
                         && !(result instanceof Union) && !(result instanceof ghidra.program.model.data.Enum)) {
                     result = new TypedefDataType(name, result);
@@ -452,6 +452,11 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
                     function = program.getFunctionManager().getFunctionAt(address);
                 }
                 if (function == null) { skipped++; continue; }
+                if (function.getComment() == null || function.getComment().isBlank()) {
+                    String sourcePath = string(symbol, "relative_path");
+                    if (!sourcePath.isBlank()) function.setComment(sourcePath);
+                }
+                importLineComments(symbol);
                 Symbol primary = function.getSymbol();
                 if (primary.getSource() == SourceType.DEFAULT ||
                         primary.getSource() == SourceType.ANALYSIS) {
@@ -516,6 +521,46 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
             } catch (Exception e) {
                 skipped++;
                 warning("Function " + name + " at " + address + ": " + e.getMessage());
+            }
+        }
+    }
+
+    private void importLineComments(JsonObject function) {
+        if (options.outputLineNumbers) {
+            for (JsonElement item : array(function, "line_numbers")) {
+                if (!item.isJsonArray()) continue;
+                JsonArray pair = item.getAsJsonArray();
+                if (pair.size() < 2) continue;
+                try {
+                    long offset = pair.get(0).getAsLong();
+                    if (offset < 0 || offset > 0xffffffffL) continue;
+                    Address address = toAddr(offset);
+                    ghidra.program.model.listing.CodeUnit code =
+                            program.getListing().getCodeUnitContaining(address);
+                    if (code != null && code.getComment(
+                            ghidra.program.model.listing.CodeUnit.EOL_COMMENT) == null) {
+                        setEOLComment(address, "Line " + pair.get(1).getAsInt());
+                    }
+                } catch (RuntimeException e) { skipped++; }
+            }
+        }
+        if (options.markInlinedCode) {
+            for (JsonElement item : array(function, "sub_source_files")) {
+                if (!item.isJsonArray()) continue;
+                JsonArray pair = item.getAsJsonArray();
+                if (pair.size() < 2) continue;
+                try {
+                    long offset = pair.get(0).getAsLong();
+                    if (offset < 0 || offset > 0xffffffffL) continue;
+                    Address address = toAddr(offset);
+                    String sourcePath = pair.get(1).getAsString();
+                    ghidra.program.model.listing.CodeUnit code =
+                            program.getListing().getCodeUnitContaining(address);
+                    if (code != null && code.getComment(
+                            ghidra.program.model.listing.CodeUnit.PRE_COMMENT) == null) {
+                        setPreComment(address, "inlined from " + sourcePath);
+                    }
+                } catch (RuntimeException e) { skipped++; }
             }
         }
     }
