@@ -308,14 +308,14 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
             }
             case "union": {
                 UnionDataType union = new UnionDataType(
-                        safeTypeName(string(node, "name"), activeTypes.size()));
+                        safeTypeName(string(node, "name"), ++anonymousTypeCounter));
                 fillUnion(union, node);
                 return union;
             }
             case "enum": {
                 int length = number(node, "size_bytes", 4);
                 EnumDataType enumeration = new EnumDataType(
-                        safeTypeName(string(node, "name"), activeTypes.size()),
+                        safeTypeName(string(node, "name"), ++anonymousTypeCounter),
                         length == 1 || length == 2 || length == 8 ? length : 4);
                 fillEnum(enumeration, node);
                 return enumeration;
