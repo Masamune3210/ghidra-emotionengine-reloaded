@@ -25,3 +25,12 @@ SECRMAN imported through the generic ELF loader as MIPS64 Release 6 even though 
 Code and JUnit source committed. No Ghidra installation is available in the execution environment, and a Git clone could not resolve github.com from the container; the connected GitHub integration was used to commit the source. Gradle/Ghidra API compilation and fresh-import runtime behavior have **not** been verified. Run gradle test and buildExtension on Ghidra 12.1.x and import SECRMAN fresh. Report compile diagnostics, import log, language ID, .iopmod module name, import/export counts and relocation statuses (Program Options > PS2 IOP IRX). On verification, implement ET_IRX-specific relocation semantics guided by a representative original IRX ELF and compare original .rel.text against the loaded memory. Avoid importing as R5900 or retaining the existing R6 database as evidence of correct decoding.
 
 Sources: PS2SDK iop/kernel/include/irx.h (import/export layouts and magic); original bigianb ghidra-emotionengine IopModSection (module header fields).
+
+## TESTSPU.bin STABS failure follow-up (2026-10-12)
+
+- On Ghidra 12.1.3, initial auto-analysis of TESTSPU.bin stopped in `StdumpParser.NodeDeserializer.readBuiltInClass` with `JsonParseException: Bad builtin class`. This was an uncaught exception in the STABS analyzer; it does not itself establish an IOP loader failure.
+- Confirmed compatibility gap in supported stdump v1.2.1 source (`chaoticgd/ccc` tag `v1.2.1`, `ccc/stabs.cpp`): `BuiltInClass::UNKNOWN_PROBABLY_ARRAY` serializes to the literal class string `"error"`. The Java AST defined this enum and fallback already, but `StdumpParser` did not recognize the string.
+- Added explicit `"error"` mapping to the unresolved built-in enum, preserving the existing conservative `undefined1` fallback and logging the name and `size_bits` when used. No arbitrary structural or type inference is performed.
+- Other unrecognized class values now identify their exact value in diagnostics. The importer catches Gson `JsonParseException` and logs the cause rather than throwing an analyzer task exception.
+- Added JUnit tests for `"error"`, established builtin classes, and an unrecognized class value. The actual TESTSPU stdump JSON is not available, so it is **not yet confirmed** that `"error"` was its offending class; if not, the next log should expose the exact value.
+- Verification: upstream producer/parser source comparison and committed tests. Ghidra 12.1.3 build and rerun of TESTSPU are still pending.
