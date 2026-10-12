@@ -485,9 +485,10 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
         return null;
     }
 
-    private void auditStructureFields(Structure structure, JsonObject source,
+    private void auditStructureFields(Structure structure,
             List<ExpectedBitfield> expected, int sourceLength) {
-        if (sourceLength >= 0 && sourceLength != structure.getLength()) {
+        if (sourceLength >= 0 && !(sourceLength == 0 && structure.isNotYetDefined())
+                && sourceLength != structure.getLength()) {
             reportLayoutWarning(structure.getName(), "size changed from " +
                     sourceLength + " to " + structure.getLength());
         }
@@ -527,13 +528,20 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
                 applyStructureField(structure, element.getAsJsonObject(), "field", expected);
             }
         }
-        auditStructureFields(structure, node, expected, sourceLength);
+        auditStructureFields(structure, expected, sourceLength);
     }
 
     private void applyStructureField(Structure structure, JsonObject field, String prefix,
             List<ExpectedBitfield> expected) {
         int offset = number(field, "offset_bytes", -1);
-        if (offset < 0) return;
+        if (offset < 0) {
+            // Static C++ members have no instance offset.
+            if (!"static".equals(string(field, "storage_class"))) {
+                skip("structure field has no usable offset",
+                        safeFieldName(field, prefix, offset));
+            }
+            return;
+        }
         JsonObject fieldType = field;
         if ("bitfield".equals(string(field, "descriptor"))) {
             DataType underlying = resolveNode(object(field, "underlying_type"));
@@ -654,8 +662,19 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
             return;
         }
         DataType type = resolveNode(fieldType);
-        if (type == null || type.getLength() <= 0) return;
-        if ((long) offset + type.getLength() > structure.getLength()) return;
+        if (type == null || type.getLength() <= 0) {
+            skip("unresolved structure field type",
+                    safeFieldName(field, prefix, offset) + " descriptor=" +
+                    string(fieldType, "descriptor"));
+            return;
+        }
+        if ((long) offset + type.getLength() > structure.getLength()) {
+            skip("ordinary field outside structure bounds",
+                    safeFieldName(field, prefix, offset) + " at +0x" +
+                    Integer.toHexString(offset) + " bytes=" + type.getLength() +
+                    " structureBytes=" + structure.getLength());
+            return;
+        }
         String conflict = conflictingMember(structure,
                 (long) offset * 8, ((long) offset + type.getLength()) * 8);
         if (conflict != null) {
