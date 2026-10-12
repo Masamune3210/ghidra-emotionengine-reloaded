@@ -54,6 +54,7 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
     private final Set<Integer> activeTypes = new HashSet<>();
     private int appliedTypes, appliedFunctions, appliedGlobals, appliedLabels, skipped;
     private int anonymousTypeCounter;
+    private int schemaVersion;
 
     public Ccc2SymbolImporter(Program program, StabsImporter.ImportOptions options,
             TaskMonitor monitor, MessageLog log) {
@@ -126,6 +127,7 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
                 throw new IllegalArgumentException("Unsupported CCC symbol database format/version: "
                         + format + " v" + version + " (requires v13-v15)");
             }
+            schemaVersion = version;
             definitions = array(database, "data_types");
             types = new DataType[definitions.size()];
             monitor.setMessage("CCC 2.x - Importing types");
@@ -380,6 +382,9 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
         if (offset < 0) return;
         JsonObject fieldType = field;
         if ("bitfield".equals(string(field, "descriptor"))) {
+            // CCC schema v15 changed both bitfield offsets to storage-unit semantics.
+            // Applying v14 offsets with the v15 interpretation corrupts structure layouts.
+            if (schemaVersion < 15) { skipped++; return; }
             DataType underlying = resolveNode(object(field, "underlying_type"));
             int bits = number(field, "size_bits", -1);
             int bitOffset = number(field, "bitfield_offset_bits", -1);
@@ -448,13 +453,15 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
                 }
                 if (function == null) { skipped++; continue; }
                 Symbol primary = function.getSymbol();
-                if (primary.getSource() != SourceType.USER_DEFINED) {
+                if (primary.getSource() == SourceType.DEFAULT ||
+                        primary.getSource() == SourceType.ANALYSIS) {
                     try { function.setName(name, SourceType.ANALYSIS); }
                     catch (Exception e) { warning("Function name " + name + ": " + e.getMessage()); }
                 }
                 JsonObject functionType = object(symbol, "type");
                 if (functionType != null && "function".equals(string(functionType, "descriptor"))
-                        && function.getSignatureSource() != SourceType.USER_DEFINED) {
+                        && (function.getSignatureSource() == SourceType.DEFAULT ||
+                            function.getSignatureSource() == SourceType.ANALYSIS)) {
                     DataType returnType = resolveNode(object(functionType, "return_type"));
                     if (returnType != null) function.setReturnType(returnType, SourceType.ANALYSIS);
                     // Do not replace known parameters with unresolved CCC types.
