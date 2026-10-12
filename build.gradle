@@ -131,7 +131,8 @@ tasks.register('prepareStdump') {
 
                 new java.util.zip.ZipFile(archiveFile).withCloseable { zip ->
                     def candidates = java.util.Collections.list(zip.entries()).findAll { entry ->
-                        !entry.isDirectory() && entry.name.replace('\\', '/').endsWith("/${spec.executable}")
+                        !entry.isDirectory() && (entry.name.replace('\\', '/') == spec.executable ||
+                            entry.name.replace('\\', '/').endsWith("/${spec.executable}"))
                     }
                     if (candidates.size() != 1) {
                         throw new GradleException("Expected one ${spec.executable} in ${archiveName}, got ${candidates.size()}")
