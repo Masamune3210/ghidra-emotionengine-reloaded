@@ -377,7 +377,7 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
         }
     }
 
-    private DataType builtin(String value) {
+    static DataType builtin(String value) {
         switch (value) {
             case "void": return VoidDataType.dataType;
             case "8-bit unsigned integer": return UnsignedCharDataType.dataType;
