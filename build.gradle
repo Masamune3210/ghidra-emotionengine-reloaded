@@ -162,7 +162,24 @@ tasks.register('prepareStdump') {
     }
 }
 
-// Ensure new packages contain the CCC 2.x native executable.
+// Ghidra scripts are loaded dynamically and are not part of compileJava.
+// Compile audit scripts explicitly so packaging catches missing imports and
+// checked-exception errors before a user hits them in Script Manager.
+tasks.register('compileCccAuditScripts', JavaCompile) {
+    source = fileTree('ghidra_scripts') {
+        include 'AuditCccBitfieldLayouts_20261012_v1.java'
+        include 'AuditTestSpuLegacyUnsigned_20261012_v2.java'
+    }
+    classpath = sourceSets.main.compileClasspath
+    destinationDirectory = layout.buildDirectory.dir('compiledCccAuditScripts')
+    options.encoding = 'UTF-8'
+}
+
+tasks.named('test') {
+    dependsOn(tasks.named('compileCccAuditScripts'))
+}
+
+// Ensure new packages contain the CCC 2.x native executable and validated scripts.
 tasks.named('buildExtension') {
-    dependsOn(tasks.named('prepareStdump'))
+    dependsOn(tasks.named('prepareStdump'), tasks.named('compileCccAuditScripts'))
 }
