@@ -21,11 +21,11 @@ public class StabsAnalyzer extends AbstractAnalyzer {
             ".debug (DWARF 1 in compatible CCC builds), .symtab and .sndata.";
 	public static final String OPTION_EMBED_BASE_CLASSES = "Embed Base Classes";
 	public static final String OPTION_EMBED_BASE_CLASSES_DESC =
-			"Embed fields from base classes in sub classes so that the type of the vtable pointer can be set correctly.";
+			"Legacy compatibility option. CCC 2.x currently represents base classes as typed fields at their recorded offsets.";
 	
 	public static final String OPTION_IMPORT_BUILTINS = "Import Built-in Types";
 	public static final String OPTION_IMPORT_BUILTINS_DESC =
-			"Create typedefs for built-in types instead of using their Ghidra equivalents (e.g. use 'unsigned char' instead of 'uchar').";
+			"Import named built-in types into the datatype manager (underlying types remain available either way).";
 	
 	public static final String OPTION_IMPORT_FUNCTIONS = "Import Functions";
 	public static final String OPTION_IMPORT_FUNCTIONS_DESC =
@@ -49,7 +49,7 @@ public class StabsAnalyzer extends AbstractAnalyzer {
 	
 	public static final String OPTION_ONLY_RUN_ONCE = "Only Run Once";
 	public static final String OPTION_ONLY_RUN_ONCE_DESC =
-			"Bail out if over 50% of the recovered types already exist to prevent the user from accidentally corrupting their file.";
+			"Do not apply CCC 2.x symbols again after a successful import. Clear CCC 2.x Symbols / Imported in program options to reapply.";
 	
 	public static final String OPTION_OVERRIDE_ELF_PATH = "Override ELF Path (Optional)";
 	public static final String OPTION_OVERRIDE_ELF_PATH_DESC =
