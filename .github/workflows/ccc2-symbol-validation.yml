@@ -3,6 +3,9 @@ name: Validate CCC 2.x bitfield layout
 on:
   push:
     branches: ["note-working/ccc2-symbol-import"]
+    paths-ignore:
+      - "docs/**"
+      - "ghidra_scripts/**"
   workflow_dispatch:
 
 concurrency:
