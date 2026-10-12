@@ -322,12 +322,11 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
                 } else {
                     result = resolveNode(node);
                 }
-                // Preserve named aliases when they refer to another data type.
-                if (result != null && options.importTypedefs && !string(item, "name").isBlank()
-                        && !(result instanceof TypedefDataType) && !(result instanceof Structure)
-                        && !(result instanceof Union) && !(result instanceof ghidra.program.model.data.Enum)) {
-                    result = new TypedefDataType(name, result);
-                }
+                // A type_name referring to a typedef must keep its own alias,
+                // rather than silently reuse the referenced typedef's name.
+                // This also preserves named references to composite types.
+                result = preserveNamedAlias(result, string(item, "name"),
+                        string(node, "descriptor"), options.importTypedefs);
                 types[index] = result;
             }
             return result;
@@ -335,6 +334,26 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
             activeTypes.remove(index);
             completedTypes.add(index);
         }
+    }
+
+    /**
+     * Keep the name of an explicit CCC alias, even when its target was itself
+     * already represented as a typedef. Raw composite declarations retain
+     * their native Ghidra data type rather than acquiring a second wrapper.
+     */
+    static DataType preserveNamedAlias(DataType target, String name, String descriptor,
+            boolean enabled) {
+        if (!enabled || target == null || name == null || name.isBlank() ||
+                name.equals(target.getName())) {
+            return target;
+        }
+        boolean isReference = "type_name".equals(descriptor);
+        if (!isReference && (target instanceof TypedefDataType ||
+                target instanceof Structure || target instanceof Union ||
+                target instanceof ghidra.program.model.data.Enum)) {
+            return target;
+        }
+        return new TypedefDataType(name, target);
     }
 
     static boolean shouldCorrectLegacyIopUnsigned(String name, JsonObject node,
