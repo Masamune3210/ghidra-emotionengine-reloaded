@@ -108,3 +108,21 @@ Fresh TESTSPU result after `578fe23`: `Imported types=81 functions=9 globals=16 
 Reviewed Ghidra `StructureDataType.insertBitFieldAt()`: `byteWidth` specifies the containing storage window and is **not required to equal** `baseDataType.getLength()`; the implementation checks only that it is large enough for the effective field width and bit shift, while `BitFieldDataType` retains the original base type. Commit `903d203e49b07f57d91d2f78e63f2b692aac2ad7` now tries v13/v14 storage windows, from the declared datatype width downward in powers of two, aligned to the original bit position, without extending past the existing structure or splitting the bitfield. v15's explicit storage-unit semantics are left unchanged. The base datatype is **not** changed; narrowing is counted separately, with two examples printed and `Bitfields placed=... narrowedStorageWindows=...` in the analysis log.
 
 Pure arithmetic spot checks: `attr` at bit 0 and `option` at bit 32 both select an 8-byte window in a hypothetical 8-byte structure, and still occupy their original 32-bit ranges. A true 128-bit field in a 16-byte structure retains 16 bytes; a field exceeding its structure is still rejected. The test structure sizes are illustrative, not established from the user's file. **No new Ghidra build or import was observed for this commit.** Next: test on a fresh TESTSPU import and inspect the new bitfield counts; verify the actual layouts against CCC JSON, not just whether skips fall to 3. If unexpected shifts/overlaps appear, do not merge without a targeted correction.
+
+## TESTSPU CCC v14 all bitfields inserted (2026-10-12)
+
+Fresh Ghidra 12.1.3 runtime verification after storage-window commit `903d203e49b07f57d91d2f78e63f2b692aac2ad7`:
+
+```text
+CCC 2.x> Narrowed bitfield storage window attr: 16 -> 8 bytes (base type unchanged: unsigned int)
+CCC 2.x> Narrowed bitfield storage window option: 16 -> 8 bytes (base type unchanged: unsigned int)
+CCC 2.x> Skipped [unmapped labels]: end / address=6312
+CCC 2.x> Skipped [unmapped labels]: _end / address=6312
+CCC 2.x> Skip reason: unmapped labels = 3
+CCC 2.x> Bitfields placed=47 narrowedStorageWindows=11
+CCC 2.x> Imported types=81 functions=9 globals=16 labels=2 skipped=3 (JSON v14)
+```
+
+All 47 previously omitted bitfields were accepted for Ghidra insertion and 11 required a narrowed storage window; only 3 unmapped labels remain skipped. The original bitfield omission is resolved at the insertion/API level, **not yet verified byte-for-byte or field-for-field against CCC's original STABS definitions**. In particular, some reference chains report base type name `unsigned int` with a 16-byte width, which should be checked against the actual datatype aliases and metadata before asserting correct semantics. The test input's other symbol counts remain stable.
+
+Next step: inspect representative structures containing `magic`, `attr`, `option`, compare offsets, widths, unions and total structure lengths against the CCC v14 JSON and disassembly. Audit whether `Structure.insertBitFieldAt()` shifted any neighboring fields, especially on structures containing both bitfields and ordinary fields. Keep the 3 unmapped labels separate from bitfield correctness; do not force labels outside memory without an IRX layout justification. No merge yet.
