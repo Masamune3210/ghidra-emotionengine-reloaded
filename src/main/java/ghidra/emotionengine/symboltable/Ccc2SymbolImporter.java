@@ -410,10 +410,35 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
             DataType underlying = resolveNode(object(field, "underlying_type"));
             int bits = number(field, "size_bits", -1);
             int bitOffset = number(field, "bitfield_offset_bits", -1);
-            if (underlying == null || underlying.getLength() <= 0 ||
-                    underlying.getLength() > 16 || bits <= 0 || bitOffset < 0) {
-                skip("invalid bitfield metadata",
-                        safeFieldName(field, prefix, offset) + " at +" + offset);
+            if (underlying == null) {
+                JsonObject source = object(field, "underlying_type");
+                int ref = number(source, "data_type", -1);
+                String referencedDescriptor = ref >= 0 && ref < definitions.size()
+                        && definitions.get(ref).isJsonObject()
+                        ? string(object(definitions.get(ref).getAsJsonObject(), "type"),
+                                "descriptor") : "unavailable";
+                skip("unresolved bitfield underlying type",
+                        safeFieldName(field, prefix, offset) + " at +0x" +
+                        Integer.toHexString(offset) + " descriptor=" +
+                        string(source, "descriptor") + " class=" + string(source, "class") +
+                        " typeName=" + string(source, "type_name") +
+                        " dataTypeIndex=" + ref + " referencedDescriptor=" +
+                        referencedDescriptor + " node=" + (source == null ? "null" : source));
+                return;
+            }
+            int unitBytes = underlying.getLength();
+            if (unitBytes <= 0 || unitBytes > 16) {
+                skip("invalid bitfield storage width",
+                        safeFieldName(field, prefix, offset) + " at +0x" +
+                        Integer.toHexString(offset) + " resolvedType=" +
+                        underlying.getName() + " storageBytes=" + unitBytes);
+                return;
+            }
+            if (bits <= 0 || bitOffset < 0) {
+                skip("invalid bitfield size or position",
+                        safeFieldName(field, prefix, offset) + " at +0x" +
+                        Integer.toHexString(offset) + " sizeBits=" + bits +
+                        " bitOffset=" + bitOffset + " underlying=" + underlying.getName());
                 return;
             }
 
@@ -422,7 +447,6 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
             // changed offset_bytes to the underlying storage unit's beginning,
             // and bitfield_offset_bits to the bit index within that unit.
             // Ghidra requires BOTH a storage-unit start and a shift within it.
-            int unitBytes = underlying.getLength();
             int unitBits = unitBytes * 8;
             long firstBit = (long) offset * 8 + bitOffset;
             long storageByte;
