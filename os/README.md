@@ -1,23 +1,33 @@
-The STABS analyzer uses the native [ccc/stdump](https://github.com/chaoticgd/ccc)
-v1.2.1 executable. It does not build from the Java sources.
+# CCC 2.x native symbol importer
 
-The normal Gradle `buildExtension` task automatically runs `prepareStdump`,
-which downloads and SHA-256-verifies the pinned v1.2.1 release archives for
-Linux, macOS, and Windows. Native binaries are ignored by Git.
+The symbol analyzer now uses CCC 2.x, not the v1.2.1 STABS-only JSON model.
+CCC v2.1 emits JSON schema v14; the new importer accepts schemas v13-v15
+and the newer development builds can additionally read DWARF 1.
 
-Native helper locations:
+The Gradle buildExtension task runs prepareStdump to download CCC v2.1.
+The release artifacts available in upstream's v2.1 release include Windows,
+Linux-musl and Apple Silicon macOS builds. Native helper locations:
 
-- `os/linux_x86_64/stdump`
-- `os/mac_x86_64/stdump`
-- `os/win_x86_64/stdump.exe`
+- os/linux_x86_64/stdump
+- os/mac_arm_64/stdump
+- os/win_x86_64/stdump.exe
 
-For an offline build, place the corresponding v1.2.1 executables in these
-locations before running `buildExtension`. The release CI also supports
-`bash os/download.sh` for explicit provisioning.
+**Integrity note:** The v2.1 release API does not provide SHA-256 digests for
+its existing assets. The provisioner prints the downloaded archive's digest
+but cannot verify it against an upstream-published checksum by default.
+For trusted reproducible provisioning provide the relevant SHA-256 as
+-PcccStdumpSha256Linux=..., -PcccStdumpSha256Mac=..., or
+-PcccStdumpSha256Windows=.... These are archive checksums, not executable
+checksums. To use preinstalled trusted v2.x binaries without downloading,
+pass -PuseLocalCcc2Stdump to Gradle.
 
-An extension that was **already installed** without its Windows helper needs
-either a reinstall of a complete ZIP or a copy of `stdump.exe` into the
-installed extension's `os/win_x86_64` directory, then a Ghidra restart.
+macOS Intel requires a separately built compatible CCC 2.x executable, or
+a newer upstream release that supplies one. The tagged v2.1 mac archive is
+for Apple Silicon; do not copy it to mac_x86_64.
 
-No `.mdebug` section means there is no STABS input. Metrowerks `.mwcats`
-is a different symbol/debug metadata format.
+If updating an installed extension, reinstall the built ZIP. Do not leave a
+v1.2.1 stdump executable in its os/ platform directory; v1.x does not
+support the v2.x json subcommand or schema.
+
+CCC recognizes .mdebug, .debug (DWARF 1 in supported builds), .symtab, and
+.sndata symbol sections. It does not implement Metrowerks .mwcats parsing.
