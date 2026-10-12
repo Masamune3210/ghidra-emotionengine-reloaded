@@ -11,6 +11,7 @@ import ghidra.app.util.importer.MessageLog;
 import ghidra.app.util.opinion.ElfLoader;
 import ghidra.app.util.opinion.LoadSpec;
 import ghidra.app.util.opinion.Loader;
+import ghidra.app.util.opinion.LoaderTier;
 import ghidra.program.model.address.Address;
 import ghidra.program.model.data.ArrayDataType;
 import ghidra.program.model.data.CategoryPath;
@@ -48,6 +49,13 @@ public class IopIrxElfLoader extends ElfLoader {
     @Override
     public String getName() {
         return "PlayStation 2 IOP IRX (ELF)";
+    }
+
+    @Override
+    public LoaderTier getTier() {
+        // Only Sony IOP types pass findSupportedLoadSpecs; prioritize those over
+        // the generic ELF loader without touching ordinary EE/MIPS imports.
+        return LoaderTier.SPECIALIZED_TARGET_LOADER;
     }
 
     @Override
