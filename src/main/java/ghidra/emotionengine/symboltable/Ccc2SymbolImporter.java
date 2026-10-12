@@ -407,17 +407,56 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
         if (offset < 0) return;
         JsonObject fieldType = field;
         if ("bitfield".equals(string(field, "descriptor"))) {
-            // CCC schema v15 changed both bitfield offsets to storage-unit semantics.
-            // Applying v14 offsets with the v15 interpretation corrupts structure layouts.
-            if (schemaVersion < 15) { skip("v13/v14 bitfields intentionally omitted", safeFieldName(field, prefix, offset) + " at +0x" + Integer.toHexString(offset)); return; }
             DataType underlying = resolveNode(object(field, "underlying_type"));
             int bits = number(field, "size_bits", -1);
             int bitOffset = number(field, "bitfield_offset_bits", -1);
-            if (underlying == null || bits <= 0 || bitOffset < 0) return;
+            if (underlying == null || underlying.getLength() <= 0 ||
+                    underlying.getLength() > 16 || bits <= 0 || bitOffset < 0) {
+                skip("invalid bitfield metadata",
+                        safeFieldName(field, prefix, offset) + " at +" + offset);
+                return;
+            }
+
+            // In CCC JSON v13/v14, offset_bytes is floor(field.offset_bits / 8)
+            // and bitfield_offset_bits is field.offset_bits % 8. CCC v15
+            // changed offset_bytes to the underlying storage unit's beginning,
+            // and bitfield_offset_bits to the bit index within that unit.
+            // Ghidra requires BOTH a storage-unit start and a shift within it.
+            int unitBytes = underlying.getLength();
+            int unitBits = unitBytes * 8;
+            long firstBit = (long) offset * 8 + bitOffset;
+            long storageByte;
+            int shift;
+            if (schemaVersion < 15) {
+                storageByte = (firstBit / unitBits) * unitBytes;
+                shift = (int) (firstBit - storageByte * 8);
+            } else {
+                storageByte = offset;
+                shift = bitOffset;
+            }
+
+            // CCC's STABS offset is from the MSB on big-endian targets.
+            // Ghidra's bitOffset parameter instead denotes the shift from
+            // the least-significant end of the storage unit.
+            if (program.getDataTypeManager().getDataOrganization().isBigEndian()) {
+                shift = unitBits - shift - bits;
+            }
+            if (storageByte < 0 || storageByte > Integer.MAX_VALUE ||
+                    shift < 0 || bits > unitBits || shift + bits > unitBits ||
+                    storageByte + unitBytes > structure.getLength()) {
+                skip("bitfield outside storage unit",
+                        safeFieldName(field, prefix, offset) + " at +" + offset +
+                        " width=" + bits + " unit=" + unitBytes + " shift=" + shift);
+                return;
+            }
+
             try {
-                structure.insertBitFieldAt(offset, underlying.getLength(), bitOffset,
+                structure.insertBitFieldAt((int) storageByte, unitBytes, shift,
                         underlying, bits, safeFieldName(field, prefix, offset), "");
-            } catch (InvalidDataTypeException | RuntimeException e) { skip("bitfield datatype rejected", "at +" + offset + ": " + e.getMessage()); }
+            } catch (InvalidDataTypeException | RuntimeException e) {
+                skip("bitfield placement rejected",
+                        safeFieldName(field, prefix, offset) + ": " + e.getMessage());
+            }
             return;
         }
         DataType type = resolveNode(fieldType);
