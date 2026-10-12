@@ -388,9 +388,50 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
             case "64-bit floating point": return DoubleDataType.dataType;
             case "128-bit unsigned integer": return UnsignedInteger16DataType.dataType;
             case "128-bit signed integer": return Integer16DataType.dataType;
-            // Do not invent floating-point-128 semantics or widths for malformed STABS.
+            case "128-bit integer": return Integer16DataType.dataType;
+            case "128-bit floating point": return Float16DataType.dataType;
             default: return null;
         }
+    }
+
+    /**
+     * Trace CCC type_name references through the original database for useful
+     * diagnostics, including unsupported builtins and reference cycles.
+     * This is deliberately read-only and never guesses a missing datatype.
+     */
+    private String describeTypeReferenceChain(JsonObject node) {
+        StringBuilder path = new StringBuilder();
+        Set<Integer> visited = new HashSet<>();
+        for (int depth = 0; depth < 16 && node != null; depth++) {
+            String descriptor = string(node, "descriptor");
+            if (depth != 0) path.append(" -> ");
+            path.append(descriptor);
+            if ("builtin".equals(descriptor)) {
+                path.append("(").append(string(node, "class")).append(")");
+                break;
+            }
+            if (!"type_name".equals(descriptor)) {
+                path.append("(size=").append(number(node, "size_bytes", -1)).append(")");
+                break;
+            }
+            int index = number(node, "data_type", -1);
+            path.append("[").append(index).append("]");
+            if (index < 0 || index >= definitions.size() ||
+                    !definitions.get(index).isJsonObject()) {
+                path.append("(invalid index)");
+                break;
+            }
+            if (!visited.add(index)) {
+                path.append("(cycle)");
+                break;
+            }
+            JsonObject entry = definitions.get(index).getAsJsonObject();
+            String name = string(entry, "name");
+            if (!name.isBlank()) path.append("(").append(name).append(")");
+            node = object(entry, "type");
+            if (node == null) path.append(" -> missing type");
+        }
+        return path.toString();
     }
 
     private void fillStructure(Structure structure, JsonObject node) {
@@ -423,7 +464,9 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
                         string(source, "descriptor") + " class=" + string(source, "class") +
                         " typeName=" + string(source, "type_name") +
                         " dataTypeIndex=" + ref + " referencedDescriptor=" +
-                        referencedDescriptor + " node=" + (source == null ? "null" : source));
+                        referencedDescriptor + " chain=" +
+                        describeTypeReferenceChain(source) +
+                        " node=" + (source == null ? "null" : source));
                 return;
             }
             int unitBytes = underlying.getLength();
