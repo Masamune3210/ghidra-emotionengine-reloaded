@@ -446,8 +446,17 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
             try {
                 Function function = program.getFunctionManager().getFunctionAt(address);
                 if (function == null) {
-                    CreateFunctionCmd cmd = new CreateFunctionCmd(
-                            new AddressSet(address), SourceType.ANALYSIS);
+                    AddressSet body = new AddressSet(address);
+                    int byteLength = number(symbol, "size", 0);
+                    if (byteLength > 0 && byteLength <= 0x1000000 &&
+                            address.getOffset() + (long) byteLength - 1 <= 0xffffffffL) {
+                        Address last = toAddr(address.getOffset() + (long) byteLength - 1);
+                        if (program.getMemory().getBlock(last) ==
+                                program.getMemory().getBlock(address)) {
+                            body = new AddressSet(address, last);
+                        }
+                    }
+                    CreateFunctionCmd cmd = new CreateFunctionCmd(body, SourceType.ANALYSIS);
                     if (!cmd.applyTo(program, monitor)) { skipped++; continue; }
                     function = program.getFunctionManager().getFunctionAt(address);
                 }
@@ -471,20 +480,35 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
                     if (returnType != null) function.setReturnType(returnType, SourceType.ANALYSIS);
                     // Do not replace known parameters with unresolved CCC types.
                     JsonArray parameterIndices = array(symbol, "parameter_variables");
-                    if (symbol.has("parameter_variables")) {
+                    JsonArray parameterTypes = array(functionType, "parameters");
+                    boolean hasParameterVariables = symbol.has("parameter_variables") &&
+                            parameterIndices.size() > 0;
+                    if (hasParameterVariables || functionType.has("parameters")) {
                         List<Variable> replacements = new ArrayList<>();
                         boolean valid = true;
-                        for (JsonElement index : parameterIndices) {
-                            int id = index.getAsInt();
-                            if (id < 0 || id >= parameters.size() || !parameters.get(id).isJsonObject()) {
+                        JsonArray source = hasParameterVariables ? parameterIndices : parameterTypes;
+                        for (JsonElement entry : source) {
+                            JsonObject param;
+                            if (hasParameterVariables) {
+                                int id = entry.getAsInt();
+                                if (id < 0 || id >= parameters.size() ||
+                                        !parameters.get(id).isJsonObject()) {
+                                    valid = false; break;
+                                }
+                                param = parameters.get(id).getAsJsonObject();
+                            } else if (entry.isJsonObject()) {
+                                param = entry.getAsJsonObject();
+                            } else {
                                 valid = false; break;
                             }
-                            JsonObject param = parameters.get(id).getAsJsonObject();
                             DataType type = resolveNode(object(param, "type"));
-                            if (type == null || type instanceof VoidDataType) { valid = false; break; }
+                            if (!hasParameterVariables && type == null) type = resolveNode(param);
+                            if (type == null || type instanceof VoidDataType) {
+                                valid = false; break;
+                            }
                             JsonObject storage = object(param, "storage");
-                            if (storage != null && storage.has("is_by_reference")
-                                    && storage.get("is_by_reference").getAsBoolean()) {
+                            if (storage != null && storage.has("is_by_reference") &&
+                                    storage.get("is_by_reference").getAsBoolean()) {
                                 type = new PointerDataType(type);
                             }
                             String parameterName = string(param, "name");
