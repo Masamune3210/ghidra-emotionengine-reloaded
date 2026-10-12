@@ -12,6 +12,8 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 
+import com.google.gson.JsonParseException;
+
 import ghidra.app.cmd.function.CreateFunctionCmd;
 import ghidra.app.util.exporter.ExporterException;
 import ghidra.app.util.exporter.OriginalFileExporter;
@@ -155,8 +157,10 @@ public class StabsImporter extends FlatProgramAPI {
 		StdumpAST.ParsedJsonFile ast;
 		try {
 			ast = StdumpParser.readJson(jsonOutput);
-		} catch (FileNotFoundException e) {
-			log.appendException(e);
+		} catch (FileNotFoundException | JsonParseException e) {
+			// Malformed or unsupported stdump output must not crash auto-analysis.
+			// Report the specific class/descriptor rather than a generic exception.
+			log.appendMsg("STABS", "Failed to parse stdump JSON: " + e.getMessage());
 			return false;
 		}
 		
