@@ -40,6 +40,22 @@ public class StdumpParserBuiltinTest {
     }
 
     @Test
+    public void recoversOnlyConfirmedPs2Ilp32UnsignedNames() throws Exception {
+        assertEquals(StdumpAST.BuiltInClass.UNSIGNED_32,
+            StdumpAST.BuiltIn.recoverPs2Ilp32Unknown("unsigned int", -1));
+        assertEquals(StdumpAST.BuiltInClass.UNSIGNED_32,
+            StdumpAST.BuiltIn.recoverPs2Ilp32Unknown("long unsigned int", -1));
+        assertEquals(StdumpAST.BuiltInClass.UNSIGNED_32,
+            StdumpAST.BuiltIn.recoverPs2Ilp32Unknown("unsigned int", 32));
+        assertEquals(StdumpAST.BuiltInClass.UNKNOWN_PROBABLY_ARRAY,
+            StdumpAST.BuiltIn.recoverPs2Ilp32Unknown("long unsigned int", 64));
+        assertEquals(StdumpAST.BuiltInClass.UNKNOWN_PROBABLY_ARRAY,
+            StdumpAST.BuiltIn.recoverPs2Ilp32Unknown("unknown_type", -1));
+        assertEquals(StdumpAST.BuiltInClass.UNKNOWN_PROBABLY_ARRAY,
+            StdumpAST.BuiltIn.recoverPs2Ilp32Unknown(null, -1));
+    }
+
+    @Test
     public void rejectsUnknownClassesWithTheirActualValue() throws Exception {
         try {
             parse("unexpected new type");
