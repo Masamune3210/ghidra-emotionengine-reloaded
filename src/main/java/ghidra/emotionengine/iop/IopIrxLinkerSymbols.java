@@ -154,7 +154,8 @@ public final class IopIrxLinkerSymbols {
 
         Map<String, Long> observed = new HashMap<>();
         for (Section sec : sections) {
-            if (sec.type != 2 || sec.entrySize < 16 || sec.fileSize > MAX_TABLE_BYTES ||
+            if (sec.type != 2 || sec.entrySize < 16 || sec.entrySize > 256 ||
+                    sec.fileSize > MAX_TABLE_BYTES ||
                     sec.link >= sections.length) continue; // SHT_SYMTAB
             Section strings = sections[(int) sec.link];
             if (strings.type != 3) continue; // SHT_STRTAB
