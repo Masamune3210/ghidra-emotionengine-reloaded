@@ -27,6 +27,8 @@ public class IopIrxLinkerSymbolsTest {
         int p = 0x400 + index * 40;
         u32(elf, p, nameOffset);
         u32(elf, p + 4, type);
+        u32(elf, p + 8, index == 2 ? 6 : index == 3 ? 2 :
+                index == 4 || index == 5 || index == 6 ? 3 : 0);
         u32(elf, p + 12, addr);
         u32(elf, p + 16, off);
         u32(elf, p + 20, size);
