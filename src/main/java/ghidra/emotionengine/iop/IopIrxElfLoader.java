@@ -1,6 +1,8 @@
 package ghidra.emotionengine.iop;
 
 import java.io.IOException;
+import java.math.BigInteger;
+import java.util.Map;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
@@ -24,6 +26,9 @@ import ghidra.program.model.data.DWordDataType;
 import ghidra.program.model.data.StructureDataType;
 import ghidra.program.model.data.WordDataType;
 import ghidra.program.model.lang.LanguageCompilerSpecPair;
+import ghidra.program.model.lang.Register;
+import ghidra.program.model.lang.RegisterValue;
+import ghidra.program.model.lang.ContextChangeException;
 import ghidra.program.model.listing.CommentType;
 import ghidra.program.model.listing.Listing;
 import ghidra.program.model.listing.Program;
@@ -130,7 +135,10 @@ public class IopIrxElfLoader extends ElfLoader {
                         "; entry=" + hex(mod.entry) + "; gp=" + hex(mod.gp));
                 }
                 labelIfMapped(program, mod.entry, "IOP_ModuleEntry_" + safe(mod.name), true);
-                labelIfMapped(program, mod.gp, "IOP_ModuleGP_" + safe(mod.name), false);
+                // The module's GP is a *register value*, not necessarily
+                // mapped RAM; do not try to label an address just because it
+                // has the same number as the GP register's contents.
+                program.getOptions(OPT).setLong("Module GP register value", mod.gp);
                 log.appendMsg("IOP IRX module: " + mod.name + " v" + version(mod.version));
             }
             program.getOptions(OPT).setBoolean("ELF relocation sections present", hasRelocations);
@@ -168,6 +176,17 @@ public class IopIrxElfLoader extends ElfLoader {
         }
         catch (IOException | ElfException | RuntimeException e) {
             log.appendMsg("IOP IRX module metadata: " + e.getMessage());
+        }
+
+        // Generic ELF processing rejects SHN_HIPROC linker pseudo-symbols.
+        // Preserve only values independently corroborated by this IRX's ELF
+        // sections/PT_LOAD and .iopmod, without making unmapped fake blocks.
+        try {
+            IopIrxLinkerSymbols symbols = IopIrxLinkerSymbols.inspect(provider);
+            if (symbols != null) applyLinkerSymbols(program, provider, symbols, log);
+        }
+        catch (IOException | RuntimeException e) {
+            log.appendMsg("IOP IRX linker pseudo-symbol audit: " + e.getMessage());
         }
 
         int imports = 0;
@@ -241,6 +260,103 @@ public class IopIrxElfLoader extends ElfLoader {
         program.getOptions(OPT).setInt("Export tables recognized", exports);
         log.appendMsg("IOP IRX: " + imports + " import and " + exports +
             " export tables recognized (unresolved imports are not falsely linked)");
+    }
+
+    private static void applyLinkerSymbols(Program program, ByteProvider provider,
+            IopIrxLinkerSymbols symbols, MessageLog log) {
+        var options = program.getOptions(OPT);
+        for (Map.Entry<String, Long> symbol : symbols.verified().entrySet()) {
+            String name = symbol.getKey();
+            long value = symbol.getValue();
+            options.setLong("Linker " + name + " (ELF value)", value);
+            if ("etext".equals(name) || "_etext".equals(name) ||
+                    "edata".equals(name) || "_edata".equals(name) ||
+                    "_fbss".equals(name)) {
+                // These are section boundaries which coincide with the start
+                // of another section and therefore may be mapped safely.
+                labelIfMapped(program, value, name, false);
+            }
+        }
+        if (symbols.verified("end", symbols.imageEnd()) ||
+                symbols.verified("_end", symbols.imageEnd())) {
+            options.setLong(IopIrxLinkerSymbols.END_VALUE, symbols.imageEnd());
+            log.appendMsg("IOP IRX: end/_end = 0x" +
+                    Long.toHexString(symbols.imageEnd()) +
+                    " (exclusive PT_LOAD boundary; no memory label created)");
+        }
+        if (symbols.verified("_gp", symbols.moduleGp()) && symbols.moduleGp() != 0) {
+            options.setLong(IopIrxLinkerSymbols.GP_VALUE, symbols.moduleGp());
+            // Setting GP at the entry instruction seeds the MIPS address
+            // analyzer's GP assumption without forcing that constant over
+            // the full text region, where the register may be modified.
+            // _gp is NOT a memory location; it must not become a RAM label.
+            long entry = -1;
+            try {
+                for (var section : new String[] {".iopmod"}) {
+                    var block = program.getMemory().getBlock(section);
+                    if (block != null && block.isInitialized() && block.getSize() >= 12) {
+                        byte[] module = new byte[12];
+                        block.getBytes(block.getStart(), module);
+                        entry = Integer.toUnsignedLong(
+                                (module[4] & 0xff) | ((module[5] & 0xff) << 8) |
+                                ((module[6] & 0xff) << 16) | (module[7] << 24));
+                    }
+                }
+            } catch (Exception ignored) {
+                // A missing/malformed .iopmod mapping must not fabricate GP context.
+            }
+            // The ELF section isn't always mapped. Obtain the entry from the
+            // original source bytes if its .iopmod data was preserved there.
+            if (entry < 0) {
+                try {
+                    byte[] module = provider.readBytes(0x74, 12);
+                    // Only use a fixed file offset if its .iopmod segment was
+                    // independently mapped there by the original importer.
+                    if (program.getMemory().getBlock(".iopmod") != null) {
+                        entry = Integer.toUnsignedLong(
+                                (module[4] & 0xff) | ((module[5] & 0xff) << 8) |
+                                ((module[6] & 0xff) << 16) | (module[7] << 24));
+                    }
+                } catch (IOException ignored) { /* no verified entry */ }
+            }
+            try {
+                if (entry >= 0) {
+                    Address address = program.getAddressFactory()
+                            .getDefaultAddressSpace().getAddress(entry);
+                    MemoryBlock block = program.getMemory().getBlock(address);
+                    Register gp = program.getRegister("gp");
+                    if (block != null && block.isExecute() && gp != null) {
+                        RegisterValue old = program.getProgramContext()
+                                .getRegisterValue(gp, address);
+                        if (old == null || !old.hasValue()) {
+                            program.getProgramContext().setValue(gp, address, address,
+                                    BigInteger.valueOf(symbols.moduleGp()));
+                            log.appendMsg("IOP IRX: MIPS gp initialized at entry " +
+                                    address + " to module _gp=0x" +
+                                    Long.toHexString(symbols.moduleGp()));
+                        } else if (old.getUnsignedValue().longValue() != symbols.moduleGp()) {
+                            log.appendMsg("IOP IRX: existing GP context differs from " +
+                                    "source _gp; preserved existing value");
+                        }
+                    }
+                }
+            }
+            catch (ContextChangeException | RuntimeException e) {
+                log.appendMsg("IOP IRX: GP context was not applied: " + e.getMessage());
+            }
+            log.appendMsg("IOP IRX: _gp=0x" +
+                    Long.toHexString(symbols.moduleGp()) +
+                    " verified against .iopmod (register value, not mapped data)");
+        }
+        for (Map.Entry<String, Long> entry : symbols.observed().entrySet()) {
+            if (!symbols.verified(entry.getKey(), entry.getValue())) {
+                log.appendMsg("IOP IRX: reserved linker symbol " + entry.getKey() +
+                        "=0x" + Long.toHexString(entry.getValue()) +
+                        " failed section/module verification; left unresolved");
+            }
+        }
+        log.appendMsg("IOP IRX: verified " + symbols.verified().size() +
+                " reserved ELF linker symbols");
     }
 
     private static String hex(long n) {
