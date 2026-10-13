@@ -85,13 +85,14 @@ public final class IopIrxLinkerSymbols {
     }
 
     private static final class Section {
-        final long nameOffset, type, address, fileOffset, fileSize, link;
+        final long nameOffset, type, flags, address, fileOffset, fileSize, link;
         final long entrySize;
         String name = "";
 
         Section(byte[] sh) {
             nameOffset = u32(sh, 0);
             type = u32(sh, 4);
+            flags = u32(sh, 8);
             address = u32(sh, 12);
             fileOffset = u32(sh, 16);
             fileSize = u32(sh, 20);
@@ -143,7 +144,8 @@ public final class IopIrxLinkerSymbols {
         }
         long gp = -1, moduleEntry = -1;
         Section iopmod = byName.get(".iopmod");
-        if (iopmod != null && iopmod.fileSize >= 12) {
+        if (iopmod != null && iopmod.type == 0x70000080L &&
+                iopmod.fileSize >= 12) {
             byte[] module = read(provider, iopmod.fileOffset, 12);
             gp = u32(module, 8);
             // A real GP assumption is only safe when the module entry
@@ -175,9 +177,16 @@ public final class IopIrxLinkerSymbols {
         Section data = byName.get(".data");
         Section sbss = byName.get(".sbss");
         Section bss = byName.get(".bss");
-        long textEnd = text == null ? -1 : text.address + text.fileSize;
-        long dataEnd = data == null ? -1 : data.address + data.fileSize;
-        long smallBss = sbss != null ? sbss.address : bss != null ? bss.address : -1;
+        long textEnd = text != null && text.type == 1 &&
+                (text.flags & 0x6) == 0x6
+                ? text.address + text.fileSize : -1;
+        long dataEnd = data != null && data.type == 1 &&
+                (data.flags & 0x3) == 0x3
+                ? data.address + data.fileSize : -1;
+        long smallBss = sbss != null && sbss.type == 8 &&
+                (sbss.flags & 0x2) != 0 ? sbss.address :
+                bss != null && bss.type == 8 && (bss.flags & 0x2) != 0
+                        ? bss.address : -1;
         for (Map.Entry<String, Long> e : observed.entrySet()) {
             String name = e.getKey();
             long actual = e.getValue();
