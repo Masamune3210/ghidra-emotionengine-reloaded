@@ -183,7 +183,7 @@ public class IopIrxElfLoader extends ElfLoader {
         // sections/PT_LOAD and .iopmod, without making unmapped fake blocks.
         try {
             IopIrxLinkerSymbols symbols = IopIrxLinkerSymbols.inspect(provider);
-            if (symbols != null) applyLinkerSymbols(program, provider, symbols, log);
+            if (symbols != null) applyLinkerSymbols(program, symbols, log);
         }
         catch (IOException | RuntimeException e) {
             log.appendMsg("IOP IRX linker pseudo-symbol audit: " + e.getMessage());
@@ -262,7 +262,7 @@ public class IopIrxElfLoader extends ElfLoader {
             " export tables recognized (unresolved imports are not falsely linked)");
     }
 
-    private static void applyLinkerSymbols(Program program, ByteProvider provider,
+    private static void applyLinkerSymbols(Program program,
             IopIrxLinkerSymbols symbols, MessageLog log) {
         var options = program.getOptions(OPT);
         for (Map.Entry<String, Long> symbol : symbols.verified().entrySet()) {
@@ -290,35 +290,7 @@ public class IopIrxElfLoader extends ElfLoader {
             // analyzer's GP assumption without forcing that constant over
             // the full text region, where the register may be modified.
             // _gp is NOT a memory location; it must not become a RAM label.
-            long entry = -1;
-            try {
-                for (var section : new String[] {".iopmod"}) {
-                    var block = program.getMemory().getBlock(section);
-                    if (block != null && block.isInitialized() && block.getSize() >= 12) {
-                        byte[] module = new byte[12];
-                        block.getBytes(block.getStart(), module);
-                        entry = Integer.toUnsignedLong(
-                                (module[4] & 0xff) | ((module[5] & 0xff) << 8) |
-                                ((module[6] & 0xff) << 16) | (module[7] << 24));
-                    }
-                }
-            } catch (Exception ignored) {
-                // A missing/malformed .iopmod mapping must not fabricate GP context.
-            }
-            // The ELF section isn't always mapped. Obtain the entry from the
-            // original source bytes if its .iopmod data was preserved there.
-            if (entry < 0) {
-                try {
-                    byte[] module = provider.readBytes(0x74, 12);
-                    // Only use a fixed file offset if its .iopmod segment was
-                    // independently mapped there by the original importer.
-                    if (program.getMemory().getBlock(".iopmod") != null) {
-                        entry = Integer.toUnsignedLong(
-                                (module[4] & 0xff) | ((module[5] & 0xff) << 8) |
-                                ((module[6] & 0xff) << 16) | (module[7] << 24));
-                    }
-                } catch (IOException ignored) { /* no verified entry */ }
-            }
+            long entry = symbols.moduleEntry();
             try {
                 if (entry >= 0) {
                     Address address = program.getAddressFactory()
