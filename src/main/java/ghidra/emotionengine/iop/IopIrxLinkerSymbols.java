@@ -30,13 +30,16 @@ public final class IopIrxLinkerSymbols {
     private final Map<String, Long> observed;
     private final long imageEnd;
     private final long moduleGp;
+    private final long moduleEntry;
 
     private IopIrxLinkerSymbols(Map<String, Long> verified,
-            Map<String, Long> observed, long imageEnd, long moduleGp) {
+            Map<String, Long> observed, long imageEnd, long moduleGp,
+            long moduleEntry) {
         this.verified = Collections.unmodifiableMap(new HashMap<>(verified));
         this.observed = Collections.unmodifiableMap(new HashMap<>(observed));
         this.imageEnd = imageEnd;
         this.moduleGp = moduleGp;
+        this.moduleEntry = moduleEntry;
     }
 
     public Map<String, Long> verified() { return verified; }
@@ -46,6 +49,7 @@ public final class IopIrxLinkerSymbols {
     }
     public long imageEnd() { return imageEnd; }
     public long moduleGp() { return moduleGp; }
+    public long moduleEntry() { return moduleEntry; }
 
     private static int u16(byte[] b, int offset) {
         return (b[offset] & 0xff) | ((b[offset + 1] & 0xff) << 8);
@@ -137,11 +141,15 @@ public final class IopIrxLinkerSymbols {
             section.name = cstring(nameBytes, section.nameOffset);
             if (!section.name.isEmpty()) byName.putIfAbsent(section.name, section);
         }
-        long gp = -1;
+        long gp = -1, moduleEntry = -1;
         Section iopmod = byName.get(".iopmod");
         if (iopmod != null && iopmod.fileSize >= 12) {
             byte[] module = read(provider, iopmod.fileOffset, 12);
             gp = u32(module, 8);
+            // A real GP assumption is only safe when the module entry
+            // matches the ELF entry and points into its executable image.
+            long candidate = u32(module, 4);
+            if (candidate == u32(header, 24)) moduleEntry = candidate;
         }
 
         Map<String, Long> observed = new HashMap<>();
@@ -188,6 +196,6 @@ public final class IopIrxLinkerSymbols {
                 verified.put(name, actual);
             }
         }
-        return new IopIrxLinkerSymbols(verified, observed, end, gp);
+        return new IopIrxLinkerSymbols(verified, observed, end, gp, moduleEntry);
     }
 }
