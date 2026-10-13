@@ -21,6 +21,7 @@ public final class IopIrxLinkerSymbols {
     public static final String OPTIONS = "PS2 IOP IRX";
     public static final String END_VALUE = "Linker end (ELF value)";
     public static final String GP_VALUE = "Linker GP (ELF value)";
+    public static final String VERIFIED_ENTRY_VALUE = "Verified module entry (ELF value)";
     public static final int SHN_HIPROC = 0xff1f;
     private static final Set<String> KNOWN = Set.of(
             "etext", "_etext", "edata", "_edata", "_fbss", "end", "_end", "_gp");
