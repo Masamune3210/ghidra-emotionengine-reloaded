@@ -104,6 +104,42 @@ public class IopIrxLinkerSymbolsTest {
     }
 
     @Test
+    public void strippedRetailModuleCanSupplyVerifiedGpWithoutAnyReservedSymbols()
+            throws Exception {
+        byte[] stripped = fixture();
+        // No SHN_HIPROC entries, as in a stripped Sony retail IRX.
+        for (int i = 1; i <= 8; i++) {
+            u16(stripped, 0x240 + i * 16 + 14, 0);
+        }
+        IopIrxLinkerSymbols result =
+                IopIrxLinkerSymbols.inspect(new ByteArrayProvider(stripped));
+        assertNotNull(result);
+        assertTrue(result.verified().isEmpty());
+        assertEquals(0x8080, result.moduleGp());
+        assertEquals(0x10, result.moduleEntry());
+        assertTrue("valid .iopmod GP does not require a reserved _gp symbol",
+                result.hasValidatedModuleGp());
+    }
+
+    @Test
+    public void malformedOrZeroModuleGpDoesNotSeedAnAssumption()
+            throws Exception {
+        byte[] noGp = fixture();
+        u32(noGp, 0x88, 0);
+        IopIrxLinkerSymbols zero =
+                IopIrxLinkerSymbols.inspect(new ByteArrayProvider(noGp));
+        assertEquals(0, zero.moduleGp());
+        assertFalse(zero.hasValidatedModuleGp());
+
+        byte[] mismatchedEntry = fixture();
+        u32(mismatchedEntry, 0x84, 0x14);
+        IopIrxLinkerSymbols mismatch =
+                IopIrxLinkerSymbols.inspect(new ByteArrayProvider(mismatchedEntry));
+        assertEquals(-1, mismatch.moduleEntry());
+        assertFalse(mismatch.hasValidatedModuleGp());
+    }
+
+    @Test
     public void refusesMismatchingSpecialSymbolsAndUnverifiedEntry() throws Exception {
         byte[] corrupted = fixture();
         u32(corrupted, 0x240 + 8 * 16 + 4, 0x9090);
