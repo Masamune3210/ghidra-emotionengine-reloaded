@@ -353,3 +353,34 @@ Code changes on the same branch:
 - `9ea709a512c3b9009199fc81974abf65e9cad6e7`: read-only `ghidra_scripts/AuditIopIrxModuleMetadata_20261012_v3.java` checks optional boundaries without treating absent linker symbols as errors; validates source module GP at verified entry, relocation status counts and module table counts. `e74b277f4e12674a5b12a59293d94ed8af0208c4` adds it to Gradle audit-script compilation and `696338eb1688aa35fbc31de2376e797ef8243124` removes the superseded linker-symbol-only v2 script.
 
 **CI VERIFIED:** [Ghidra 12.1.3 full suite run 38328524736](https://github.com/Masamune3210/ghidra-emotionengine-reloaded/actions/runs/38328524736) at code commit `e74b277f4e12674a5b12a59293d94ed8af0208c4` completed successfully, including `compileCccAuditScripts` for the new v3 script and `BUILD SUCCESSFUL in 28s`. The subsequent deletion of the superseded v2 audit and handoff update do not affect compiled executable behavior. SECRMAN has not yet been reimported using this newer code. Source GP and entry values were not provided, so **do not claim GP initialization will definitely occur**: if `.iopmod` GP is zero/invalid, entry disagrees with ELF, or entry is non-executable, the code intentionally leaves GP context untouched and logs the reason. Once reimported, the v3 audit should show actual module GP and executable entry if available; TESTSPU should retain existing observed behavior. Do not merge without user request.
+
+## SECRMAN post-analysis loader validation (2026-10-12)
+
+User supplied another import of retail ROM0 `SECRMAN.bin` (MD5 `b8bac9b7c04d9931ddc50860497f3153`) after rebuilding the stripped-module GP fix. The loader reported:
+```text
+Skipping segment[0, IRX header] included by section .iopmod
+Created %got.text block required for relocation processing (gp=0xbff0)
+IOP IRX relocations: recorded=487, applied=377, failed=0, unsupported=0, skipped=0, partial=110, unknown=0
+IOP IRX: MIPS gp initialized at entry 00000018 to module GP=0xb2e0 (.iopmod; _gp symbol not required)
+IOP IRX: verified 0 reserved ELF linker symbols
+IOP IRX: 5 import and 1 export tables recognized (unresolved imports are not falsely linked)
+CCC 2.x> Legacy IOP unsigned types corrected=0 false bitfields restored as ordinary fields=0
+CCC 2.x> Bitfields placed=0 verifiedPositions=0 narrowedStorageWindows=0 structureLayoutWarnings=0
+CCC 2.x> Imported types=0 functions=0 globals=0 labels=0 skipped=0 (JSON v14)
+```
+
+This **runtime verifies the GP initialization change for a stripped retail IRX**, independently of any `_gp` linker symbol. The source `.iopmod` GP is `0xB2E0`, source module entry `0x18`, while Ghidra's synthetic relocation-GOT GP is `0xBFF0`; these remain correctly distinguished. The absence of CCC types/functions is normal for this stripped file, not a failure. Relocation statuses account for all 487 entries and no failures/unsupported cases were reported. Generic IRX header skip means its bytes were already covered by `.iopmod`.
+
+The initial Ghidra *pre-analysis* Project File Summary showed 0 instructions and 0 functions. The user explicitly clarified that analysis had not yet run and provided a subsequent `Analyzed: true` summary:
+
+| Metric | Before analysis | After analysis |
+|---|---:|---:|
+| Instructions | 0 | 2804 |
+| Functions | 0 | 70 |
+| Defined data | 22 | 104 |
+| Symbols | 26 | 521 |
+| Datatypes | 22 | 38 |
+
+Memory and binary identity stayed fixed: 13 blocks, 17,675 bytes, language `MIPS:LE:32:default`, Ghidra 12.1.3, SHA-256 `97b4628862efda71163320ac96394bbacde725399d720db0ca20c6993cb27`. This resolves the pre-analysis zero-code concern. **Do not chase a mapping/entry point bug from that pre-analysis count; no new script or code change is justified by it.**
+
+Validated coverage now includes two contrasting retail ROM0 IOP IRX modules: symbol-rich TESTSPU with 25/25 datatype audit checks and zero skipped CCC entries, and stripped SECRMAN with actual source-GP initialization, import/export discovery, and successful auto-analysis. The branch remains unmerged. Generic Ghidra synthetic GOT creation and PARTIAL relocation statuses are separate behaviors, not demonstrated runtime failures.
