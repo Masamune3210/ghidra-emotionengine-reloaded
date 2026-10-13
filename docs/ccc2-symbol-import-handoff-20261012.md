@@ -278,3 +278,29 @@ Commit `497979038c61a719525e60218232911290ceadb1` additionally prioritizes verif
 **PASS:** https://github.com/Masamune3210/ghidra-emotionengine-reloaded/actions/runs/38326509525 (Ghidra 12.1.3, Java 21). The complete `gradle test` suite and `compileCccAuditScripts` completed successfully; logs: `BUILD SUCCESSFUL in 34s` at commit `98d0df880264cdde1c2e526942db981de2ff1ae9`. This includes stricter ELF section type/allocation flag validation and both positive/negative synthetic IRX symbol tests. Documentation-only commits thereafter do not change executable logic.
 
 **Not yet functionally observed:** Ghidra's live IRX loader after these source-verified metadata changes. The `AuditIopIrxLinkerMetadata_20261012_v1.java` script is included and now CI-compiled. On a fresh import, inspect whether all eight source-proven SHN_HIPROC symbols are recognized, the five mapped boundary labels appear at 0x10d0 and 0x17e0, end/_end remain only a numeric exclusive 0x18a8, and GP context at module entry 0xd34 equals 0x97d0. CCC should report `Linker pseudo-labels retained as verified ELF metadata=3` and `skipped=0` if the loader populates the options as expected. Generic Ghidra ELF import warnings for reserved section indices may still appear, even when the extension recovers their metadata. **Do not merge without user request.**
+
+## TESTSPU live loader verification: all eight reserved linker symbols (2026-10-12)
+
+The user reimported the actual retail Sony ROM0 `TESTSPU.bin` (MD5 `6273b36b4200397fe43be82a06ff3e36`) with the new IRX loader and posted the complete **loader-phase** log. Runtime validation succeeded:
+
+```text
+Unable to place symbol: etext - value=0x10d0, section-index=0xff1f
+Unable to place symbol: _etext - value=0x10d0, section-index=0xff1f
+Unable to place symbol: edata - value=0x17e0, section-index=0xff1f
+Unable to place symbol: _edata - value=0x17e0, section-index=0xff1f
+Unable to place symbol: _fbss - value=0x17e0, section-index=0xff1f
+Unable to place symbol: end - value=0x18a8, section-index=0xff1f
+Unable to place symbol: _end - value=0x18a8, section-index=0xff1f
+Unable to place symbol: _gp - value=0x97d0, section-index=0xff1f
+Created %got.text block required for relocation processing (gp=0x9ff0)
+IOP IRX relocations: recorded=323, applied=239, failed=0, unsupported=0, skipped=0, partial=84, unknown=0
+IOP IRX: end/_end = 0x18a8 (exclusive PT_LOAD boundary; no memory label created)
+IOP IRX: MIPS gp initialized at entry 00000d34 to module _gp=0x97d0
+IOP IRX: _gp=0x97d0 verified against .iopmod (register value, not mapped data)
+IOP IRX: verified 8 reserved ELF linker symbols
+IOP IRX: 9 import and 0 export tables recognized (unresolved imports are not falsely linked)
+```
+
+**Confirmed now:** All eight reserved symbols are independently recognized by the custom IOP loader. The exclusive image-end boundary and firmware GP agree with direct ELF inspection. GP register context was set at entry `0xd34`. Relocation counts/statuses and nine import tables are unchanged. The initial eight `Unable to place symbol` messages originate in Ghidra's generic ELF loader before custom IOP processing, and do not imply the reserved symbols are still lost; `%got.text` and its synthetic `0x9ff0` GP are likewise from Ghidra's relocation fallback and do not override the source-backed GP context. Do not suppress warnings by creating fake RAM or globally renaming ELF symbols.
+
+**Still unobserved:** User has not yet posted the **post-loader CCC 2.x analysis summary** confirming `Linker pseudo-labels retained as verified ELF metadata=3` and `skipped=0`, nor the output of the already CI-compiled `ghidra_scripts/AuditIopIrxLinkerMetadata_20261012_v1.java`. These would verify that CCC consumes the recovered numeric program options and that all five boundary labels and the GP context are queryable after analysis. No further loader code modification is presently supported by the latest log. Branch remains unmerged.
