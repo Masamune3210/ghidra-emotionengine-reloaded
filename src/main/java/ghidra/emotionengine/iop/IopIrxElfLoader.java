@@ -284,6 +284,13 @@ public class IopIrxElfLoader extends ElfLoader {
                     Long.toHexString(symbols.imageEnd()) +
                     " (exclusive PT_LOAD boundary; no memory label created)");
         }
+        // The original ELF e_entry and .iopmod entry must agree before this
+        // option exists. Record it independently of the higher-level module
+        // name/version parser, which may reject an otherwise valid header.
+        if (symbols.moduleEntry() >= 0) {
+            options.setLong(IopIrxLinkerSymbols.VERIFIED_ENTRY_VALUE,
+                    symbols.moduleEntry());
+        }
         if (symbols.verified("_gp", symbols.moduleGp()) && symbols.moduleGp() != 0) {
             options.setLong(IopIrxLinkerSymbols.GP_VALUE, symbols.moduleGp());
             // Setting GP at the entry instruction seeds the MIPS address
