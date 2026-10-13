@@ -1054,9 +1054,11 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
             if (monitor.isCancelled()) return;
             if (!element.isJsonObject()) continue;
             JsonObject symbol = element.getAsJsonObject();
+            // Verified linker sentinels are not ordinary objects, even if an
+            // artificial loader-created block happens to overlap their value.
+            if (retainVerifiedLinkerPseudoLabel(symbol)) continue;
             Address address = mappedAddress(symbol);
             if (address == null) {
-                if (retainVerifiedLinkerPseudoLabel(symbol)) continue;
                 skip("unmapped labels", string(symbol, "name") +
                         " / address=" + string(symbol, "address"));
                 continue;
