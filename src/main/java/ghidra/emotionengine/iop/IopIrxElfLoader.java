@@ -291,41 +291,52 @@ public class IopIrxElfLoader extends ElfLoader {
             options.setLong(IopIrxLinkerSymbols.VERIFIED_ENTRY_VALUE,
                     symbols.moduleEntry());
         }
+        // SHN_HIPROC symbols are optional in retail binaries. The module
+        // header can supply a real GP even if the ELF has no _gp symbol.
+        // Keep the reserved linker-symbol option distinct from the module
+        // GP option so the provenance is visible to subsequent analysis.
         if (symbols.verified("_gp", symbols.moduleGp()) && symbols.moduleGp() != 0) {
             options.setLong(IopIrxLinkerSymbols.GP_VALUE, symbols.moduleGp());
-            // Setting GP at the entry instruction seeds the MIPS address
-            // analyzer's GP assumption without forcing that constant over
-            // the full text region, where the register may be modified.
-            // _gp is NOT a memory location; it must not become a RAM label.
-            long entry = symbols.moduleEntry();
-            try {
-                if (entry >= 0) {
-                    Address address = program.getAddressFactory()
-                            .getDefaultAddressSpace().getAddress(entry);
-                    MemoryBlock block = program.getMemory().getBlock(address);
-                    Register gp = program.getRegister("gp");
-                    if (block != null && block.isExecute() && gp != null) {
-                        RegisterValue old = program.getProgramContext()
-                                .getRegisterValue(gp, address);
-                        if (old == null || !old.hasValue()) {
-                            program.getProgramContext().setValue(gp, address, address,
-                                    BigInteger.valueOf(symbols.moduleGp()));
-                            log.appendMsg("IOP IRX: MIPS gp initialized at entry " +
-                                    address + " to module _gp=0x" +
-                                    Long.toHexString(symbols.moduleGp()));
-                        } else if (old.getUnsignedValue().longValue() != symbols.moduleGp()) {
-                            log.appendMsg("IOP IRX: existing GP context differs from " +
-                                    "source _gp; preserved existing value");
-                        }
-                    }
-                }
-            }
-            catch (ContextChangeException | RuntimeException e) {
-                log.appendMsg("IOP IRX: GP context was not applied: " + e.getMessage());
-            }
             log.appendMsg("IOP IRX: _gp=0x" +
                     Long.toHexString(symbols.moduleGp()) +
                     " verified against .iopmod (register value, not mapped data)");
+        }
+        if (symbols.hasValidatedModuleGp()) {
+            options.setLong(IopIrxLinkerSymbols.VERIFIED_MODULE_GP_VALUE,
+                    symbols.moduleGp());
+            // The source module entry must also lie in mapped executable
+            // memory. Preserve an existing context value if it differs.
+            try {
+                Address entry = program.getAddressFactory()
+                        .getDefaultAddressSpace().getAddress(symbols.moduleEntry());
+                MemoryBlock block = program.getMemory().getBlock(entry);
+                Register gp = program.getRegister("gp");
+                if (block != null && block.isExecute() && gp != null) {
+                    RegisterValue old = program.getProgramContext()
+                            .getRegisterValue(gp, entry);
+                    if (old == null || !old.hasValue()) {
+                        program.getProgramContext().setValue(gp, entry, entry,
+                                BigInteger.valueOf(symbols.moduleGp()));
+                        log.appendMsg("IOP IRX: MIPS gp initialized at entry " +
+                                entry + " to module GP=0x" +
+                                Long.toHexString(symbols.moduleGp()) +
+                                " (.iopmod; _gp symbol not required)");
+                    } else if (old.getUnsignedValue().longValue() != symbols.moduleGp()) {
+                        log.appendMsg("IOP IRX: existing GP context differs from " +
+                                "module .iopmod GP; preserved existing value");
+                    }
+                } else {
+                    log.appendMsg("IOP IRX: source GP=0x" +
+                            Long.toHexString(symbols.moduleGp()) +
+                            " retained but module entry is not mapped executable " +
+                            "memory or MIPS gp register is absent");
+                }
+            } catch (ContextChangeException | RuntimeException e) {
+                log.appendMsg("IOP IRX: GP context was not applied: " + e.getMessage());
+            }
+        } else {
+            log.appendMsg("IOP IRX: no validated nonzero module GP/entry pair; " +
+                    "GP register context was not assumed");
         }
         for (Map.Entry<String, Long> entry : symbols.observed().entrySet()) {
             if (!symbols.verified(entry.getKey(), entry.getValue())) {
