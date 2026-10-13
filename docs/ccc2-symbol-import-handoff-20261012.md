@@ -304,3 +304,28 @@ IOP IRX: 9 import and 0 export tables recognized (unresolved imports are not fal
 **Confirmed now:** All eight reserved symbols are independently recognized by the custom IOP loader. The exclusive image-end boundary and firmware GP agree with direct ELF inspection. GP register context was set at entry `0xd34`. Relocation counts/statuses and nine import tables are unchanged. The initial eight `Unable to place symbol` messages originate in Ghidra's generic ELF loader before custom IOP processing, and do not imply the reserved symbols are still lost; `%got.text` and its synthetic `0x9ff0` GP are likewise from Ghidra's relocation fallback and do not override the source-backed GP context. Do not suppress warnings by creating fake RAM or globally renaming ELF symbols.
 
 **Still unobserved:** User has not yet posted the **post-loader CCC 2.x analysis summary** confirming `Linker pseudo-labels retained as verified ELF metadata=3` and `skipped=0`, nor the output of the already CI-compiled `ghidra_scripts/AuditIopIrxLinkerMetadata_20261012_v1.java`. These would verify that CCC consumes the recovered numeric program options and that all five boundary labels and the GP context are queryable after analysis. No further loader code modification is presently supported by the latest log. Branch remains unmerged.
+
+## Final CCC zero-skip import and GP-context audit follow-up (2026-10-12)
+
+The user posted the complete **post-loader CCC analysis log** and the original IRX metadata audit for the fresh retail TESTSPU import:
+
+```text
+CCC 2.x> Legacy IOP STABS unsigned 0;-1 declarations detected: [unsigned int, long unsigned int]
+CCC 2.x> Legacy IOP unsigned types corrected=2 false bitfields restored as ordinary fields=45
+CCC 2.x> Bitfields placed=2 verifiedPositions=2 narrowedStorageWindows=0 structureLayoutWarnings=0
+CCC 2.x> Linker pseudo-labels retained as verified ELF metadata=3 (no artificial memory created)
+CCC 2.x> Imported types=81 functions=9 globals=16 labels=0 skipped=0 (JSON v14)
+```
+
+`AuditIopIrxLinkerMetadata_20261012_v1.java` returned **13 passed / 0 failed**: verified `end` at exclusive 0x18a8, verified `_gp` value 0x97d0, and five mapped boundary labels (`etext`, `_etext`, `edata`, `_edata`, `_fbss`) at source-backed 0x10d0/0x17e0. No synthetic memory was created at end. `Imported labels=0` is expected: the IRX loader had already created these five mapped labels and the three reserved CCC labels were retained numerically. This is functional confirmation that the reserved-symbol metadata integration and the CCC symbol importer work together, with **zero actual skipped records**.
+
+The v1 audit had one **non-asserting gap**: `GP entry-context check unavailable: entry=`. It depended on optional string option `Entry (ELF value)` emitted only by `IopIrxFormat.readModule()`, which was not present in this database. This does NOT contradict the earlier loader log `MIPS gp initialized at entry 00000d34 to module _gp=0x97d0`. To close the gap:
+
+- Commit `805869d35ab03be6252d1620a255bbe553167e94` introduced the explicit `Verified module entry (ELF value)` key to `IopIrxLinkerSymbols`.
+- Commit `b99e41a3c76edba18dfdbe6aa7a79ac5f01a0677` persists this numeric value whenever the original ELF `e_entry` agrees with the `.iopmod` entry (independent of optional module name/version parsing).
+- Commit `d78b7bcc3820820db9e92fec1957fcfa8dbb6717` added `ghidra_scripts/AuditIopIrxLinkerMetadata_20261012_v2.java`. It first verifies GP register context at the independently verified source entry. For programs imported with the old loader, with no entry option, it can **still validate the existing database** by scanning executable GP context ranges for the verified 0x97d0 value, reporting any matching range. This fallback is explicitly weaker and does not mislabel the discovered range as the original module entry.
+- Commit `9ff22ddd00dc92d04d1e3d23a3b267c5086702b2` updates Gradle script compilation to v2; commit `33226c0c714b05863d6c8b88f5e00544b981924f` removes the v1 audit from the branch to prevent accidental runs.
+
+A branch CI run for the corrected v2 Java script and the full Ghidra 12.1.3 suite was triggered. Its outcome must be checked before stating that v2 compiles. This follow-up does not change symbol offsets, imported datatype layouts or Ghidra's generic synthetic GOT relocation behavior. No merge was requested or performed.
+
+Current verified status: **CCC import 0 skips, original audited structure types 25/25, linker labels 13/13, real GP context initialized at module entry by loader log**. The revised audit may supply final independent confirmation of persisted register context without reimporting for existing databases.
