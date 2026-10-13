@@ -169,7 +169,7 @@ tasks.register('compileCccAuditScripts', JavaCompile) {
     source = fileTree('ghidra_scripts') {
         include 'AuditCccBitfieldLayouts_20261012_v1.java'
         include 'AuditTestSpuLegacyUnsigned_20261012_v2.java'
-        include 'AuditIopIrxLinkerMetadata_20261012_v2.java'
+        include 'AuditIopIrxModuleMetadata_20261012_v3.java'
     }
     classpath = sourceSets.main.compileClasspath
     destinationDirectory = layout.buildDirectory.dir('compiledCccAuditScripts')
