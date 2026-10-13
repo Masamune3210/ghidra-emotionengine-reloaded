@@ -329,3 +329,27 @@ The v1 audit had one **non-asserting gap**: `GP entry-context check unavailable:
 **Verification passed:** [Ghidra 12.1.3 full CI run 38327195660](https://github.com/Masamune3210/ghidra-emotionengine-reloaded/actions/runs/38327195660) on code commit `9ff22ddd00dc92d04d1e3d23a3b267c5086702b2`; `compileCccAuditScripts` compiled v2 and `gradle test` reported `BUILD SUCCESSFUL in 37s`. Runtime execution of v2 against the user's database remains unobserved. The existing database can be checked with v2's executable GP-context scan without reimporting. This follow-up does not change symbol offsets, imported datatype layouts or Ghidra's generic synthetic GOT relocation behavior. No merge was requested or performed.
 
 Current verified status: **CCC import 0 skips, original audited structure types 25/25, linker labels 13/13, real GP context initialized at module entry by loader log**. The revised audit may supply final independent confirmation of persisted register context without reimporting for existing databases.
+
+## SECRMAN stripped retail IRX loader validation (2026-10-12)
+
+The user imported a second real SCPH-39001 ROM0 module, `SECRMAN.bin` (MD5 `b8bac9b7c04d9931ddc50860497f3153`), as a contrasting loader test. Log:
+
+```text
+Skipping segment[0, IRX header] included by section .iopmod
+Created %got.text block required for relocation processing (gp=0xbff0)
+IOP IRX relocations: recorded=487, applied=377, failed=0, unsupported=0, skipped=0, partial=110, unknown=0
+IOP IRX: verified 0 reserved ELF linker symbols
+IOP IRX: 5 import and 1 export tables recognized (unresolved imports are not falsely linked)
+```
+
+The generic Ghidra `ElfProgramBuilder.processProgramHeaders` logs `Skipping segment ... included by section` when a non-PT_LOAD header's bytes are already covered by a loaded section (source `ElfProgramBuilder.java` lines 3173–3182). This is ordinary duplicate-load avoidance, not evidence that `.iopmod` was discarded. `%got.text` uses Ghidra's synthetic relocation GP fallback, not proven module GP. SECRMAN has **no reserved SHN_HIPROC linker symbols**, unlike TESTSPU, and export discovery is additionally exercised: five import tables and one export table recognized. All 487 relocation statuses are accounted for (377 applied + 110 partial), with 0 failed/unsupported.
+
+This exposed a genuine loader gap: before this pass, `IopIrxElfLoader.applyLinkerSymbols` seeded MIPS gp **only inside** the `symbols.verified("_gp", ...)` branch, so legitimate stripped retail modules without that linker symbol had no GP context, even when a valid `.iopmod` header supplied it.
+
+Code changes on the same branch:
+- `e1a6eefcf02a9b3f20bfbf26a50c89f06ba2c4ca`: `IopIrxLinkerSymbols.hasValidatedModuleGp()` and `Verified module GP (ELF value)` program option. Requires nonzero/non-all-ones `.iopmod` GP **and** a module entry matching ELF `e_entry`, independent of any symbol table.
+- `6ce523b53098dfccfbfb62f75a4618cbf1acaadb`: preserve the distinction between reserved `_gp` symbol metadata and source `.iopmod` GP. Seed the real gp register at executable mapped module entry when its source pair validates, regardless of symbol presence. Preserve existing GP context; do not fabricate memory, rewrite relocations or silently override conflicting register values. Log explicit reasons for absent/unsafe GP initialization.
+- `7500b88193ec930ed11a42aa03b2581e3fbcfb59`: JUnit regression for a completely stripped `SHN_HIPROC` table with valid GP, and negative GP=0 / entry disagreement cases.
+- `9ea709a512c3b9009199fc81974abf65e9cad6e7`: read-only `ghidra_scripts/AuditIopIrxModuleMetadata_20261012_v3.java` checks optional boundaries without treating absent linker symbols as errors; validates source module GP at verified entry, relocation status counts and module table counts. `e74b277f4e12674a5b12a59293d94ed8af0208c4` adds it to Gradle audit-script compilation and `696338eb1688aa35fbc31de2376e797ef8243124` removes the superseded linker-symbol-only v2 script.
+
+**Remaining verification:** Full Ghidra 12.1.3 CI triggered for GP fix and v3 audit script; check the latest non-cancelled run. SECRMAN has not yet been reimported using this newer code. Source GP and entry values were not provided, so **do not claim GP initialization will definitely occur**: if `.iopmod` GP is zero/invalid, entry disagrees with ELF, or entry is non-executable, the code intentionally leaves GP context untouched and logs the reason. Once reimported, the v3 audit should show actual module GP and executable entry if available; TESTSPU should retain existing observed behavior. Do not merge without user request.
