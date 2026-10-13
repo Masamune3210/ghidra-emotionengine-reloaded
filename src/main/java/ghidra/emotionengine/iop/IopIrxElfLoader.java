@@ -28,7 +28,7 @@ import ghidra.program.model.data.WordDataType;
 import ghidra.program.model.lang.LanguageCompilerSpecPair;
 import ghidra.program.model.lang.Register;
 import ghidra.program.model.lang.RegisterValue;
-import ghidra.program.model.lang.ContextChangeException;
+import ghidra.program.model.listing.ContextChangeException;
 import ghidra.program.model.listing.CommentType;
 import ghidra.program.model.listing.Listing;
 import ghidra.program.model.listing.Program;
