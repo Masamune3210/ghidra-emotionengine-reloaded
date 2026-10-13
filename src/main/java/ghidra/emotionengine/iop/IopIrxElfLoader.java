@@ -274,7 +274,7 @@ public class IopIrxElfLoader extends ElfLoader {
                     "_fbss".equals(name)) {
                 // These are section boundaries which coincide with the start
                 // of another section and therefore may be mapped safely.
-                labelIfMapped(program, value, name, false);
+                labelBoundaryIfMapped(program, value, name);
             }
         }
         if (symbols.verified("end", symbols.imageEnd()) ||
@@ -341,6 +341,21 @@ public class IopIrxElfLoader extends ElfLoader {
 
     private static String safe(String s) {
         return s.replaceAll("[^A-Za-z0-9_]", "_");
+    }
+
+    private static void labelBoundaryIfMapped(Program program, long offset,
+            String name) {
+        try {
+            Address address = program.getAddressFactory()
+                    .getDefaultAddressSpace().getAddress(offset);
+            MemoryBlock block = program.getMemory().getBlock(address);
+            // _fbss, edata and _edata can mark uninitialized .sbss/.bss.
+            if (block != null && block.isLoaded()) {
+                createLabel(program, address, name);
+            }
+        } catch (RuntimeException ignored) {
+            // Section boundary is recorded numerically in program options.
+        }
     }
 
     private static void labelIfMapped(Program program, long offset,
