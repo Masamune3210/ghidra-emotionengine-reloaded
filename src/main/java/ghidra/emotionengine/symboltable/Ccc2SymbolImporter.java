@@ -18,6 +18,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
 import ghidra.app.cmd.function.CreateFunctionCmd;
+import ghidra.emotionengine.iop.IopIrxLinkerSymbols;
 import ghidra.app.util.exporter.ExporterException;
 import ghidra.app.util.exporter.OriginalFileExporter;
 import ghidra.app.util.importer.MessageLog;
@@ -63,6 +64,7 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
     private Set<String> legacyIopUnsignedNames = java.util.Collections.emptySet();
     private final Set<Integer> correctedLegacyUnsignedIndices = new HashSet<>();
     private int verifiedBitfields, layoutWarnings;
+    private int retainedLinkerSentinels;
     private final Map<String, Integer> skipReasons = new LinkedHashMap<>();
 
     public Ccc2SymbolImporter(Program program, StabsImporter.ImportOptions options,
@@ -191,6 +193,9 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
                     " verifiedPositions=" + verifiedBitfields +
                     " narrowedStorageWindows=" + narrowedBitfieldWindows +
                     " structureLayoutWarnings=" + layoutWarnings);
+            if (retainedLinkerSentinels != 0) warning(
+                    "Linker pseudo-labels retained as verified ELF metadata=" +
+                    retainedLinkerSentinels + " (no artificial memory created)");
             warning("Imported types=" + appliedTypes + " functions=" + appliedFunctions
                     + " globals=" + appliedGlobals + " labels=" + appliedLabels
                     + " skipped=" + skipped + " (JSON v" + version + ")");
@@ -1050,10 +1055,36 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
             if (!element.isJsonObject()) continue;
             JsonObject symbol = element.getAsJsonObject();
             Address address = mappedAddress(symbol);
-            if (address == null) { skip("unmapped labels", string(symbol, "name") + " / address=" + string(symbol, "address")); continue; }
+            if (address == null) {
+                if (retainVerifiedLinkerPseudoLabel(symbol)) continue;
+                skip("unmapped labels", string(symbol, "name") +
+                        " / address=" + string(symbol, "address"));
+                continue;
+            }
             try { if (createSafeLabel(address, string(symbol, "name"))) appliedLabels++; }
             catch (Exception e) { skip("label processing", string(symbol, "name") + ": " + e.getMessage()); }
         }
+    }
+
+    static boolean isVerifiedLinkerPseudoLabel(String name, long value,
+            long linkerEnd, long linkerGp) {
+        return (("end".equals(name) || "_end".equals(name)) &&
+                value >= 0 && value == linkerEnd) ||
+                ("_gp".equals(name) && value >= 0 && value == linkerGp);
+    }
+
+    private boolean retainVerifiedLinkerPseudoLabel(JsonObject symbol) {
+        long value = unsignedAddress(symbol, "address");
+        if (value < 0) return false;
+        var options = program.getOptions(IopIrxLinkerSymbols.OPTIONS);
+        long linkerEnd = options.getLong(IopIrxLinkerSymbols.END_VALUE, -1);
+        long linkerGp = options.getLong(IopIrxLinkerSymbols.GP_VALUE, -1);
+        String name = string(symbol, "name");
+        if (!isVerifiedLinkerPseudoLabel(name, value, linkerEnd, linkerGp)) {
+            return false;
+        }
+        retainedLinkerSentinels++;
+        return true;
     }
 
     private boolean createSafeLabel(Address address, String name) {
