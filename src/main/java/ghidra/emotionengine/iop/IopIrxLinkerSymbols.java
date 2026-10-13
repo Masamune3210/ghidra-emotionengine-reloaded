@@ -22,6 +22,7 @@ public final class IopIrxLinkerSymbols {
     public static final String END_VALUE = "Linker end (ELF value)";
     public static final String GP_VALUE = "Linker GP (ELF value)";
     public static final String VERIFIED_ENTRY_VALUE = "Verified module entry (ELF value)";
+    public static final String VERIFIED_MODULE_GP_VALUE = "Verified module GP (ELF value)";
     public static final int SHN_HIPROC = 0xff1f;
     private static final Set<String> KNOWN = Set.of(
             "etext", "_etext", "edata", "_edata", "_fbss", "end", "_end", "_gp");
@@ -51,6 +52,15 @@ public final class IopIrxLinkerSymbols {
     public long imageEnd() { return imageEnd; }
     public long moduleGp() { return moduleGp; }
     public long moduleEntry() { return moduleEntry; }
+    /**
+     * GP and the executable entry are independently available from .iopmod
+     * and the ELF header. No reserved _gp linker symbol is required, since
+     * retail IOP modules frequently omit those symbols.
+     */
+    public boolean hasValidatedModuleGp() {
+        return moduleEntry >= 0 && moduleGp > 0 &&
+                moduleGp != 0xffffffffL;
+    }
 
     private static int u16(byte[] b, int offset) {
         return (b[offset] & 0xff) | ((b[offset + 1] & 0xff) << 8);
