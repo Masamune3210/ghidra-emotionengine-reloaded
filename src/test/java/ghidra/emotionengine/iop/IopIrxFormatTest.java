@@ -29,6 +29,41 @@ public class IopIrxFormatTest {
     }
 
     @Test
+    public void iopAndEeRelocatableTypesAreDisjoint() {
+        byte[] h = new byte[52];
+        h[0] = 0x7f; h[1] = 'E'; h[2] = 'L'; h[3] = 'F';
+        h[4] = 1; h[5] = 1; h[6] = 1; h[18] = 8;
+
+        // Both Sony IOP relocatable types must be accepted.
+        h[16] = (byte) 0x80; h[17] = (byte) 0xff;
+        assertTrue(IopIrxFormat.isIopElf(h));
+        h[16] = (byte) 0x81;
+        assertTrue(IopIrxFormat.isIopElf(h));
+
+        // Neither Sony EE relocatable type is an IOP program.
+        h[16] = (byte) 0x90;
+        assertFalse(IopIrxFormat.isIopElf(h));
+        h[16] = (byte) 0x91;
+        assertFalse(IopIrxFormat.isIopElf(h));
+
+        // Even a contradictory IOP type + explicit R5900 machine flag must
+        // not be offered for import as an IOP module.
+        h[16] = (byte) 0x80;
+        word(h, 36, 0x20924001); // EE/R5900 e_flags
+        assertFalse(IopIrxFormat.isIopElf(h));
+        h[16] = (byte) 0x81;
+        assertFalse(IopIrxFormat.isIopElf(h));
+
+        // Other machine flags are not accidentally treated as R5900.
+        word(h, 36, 0x20000000);
+        assertTrue(IopIrxFormat.isIopElf(h));
+        h[18] = 10;
+        assertTrue(IopIrxFormat.isIopElf(h));
+        h[18] = 9;
+        assertFalse(IopIrxFormat.isIopElf(h));
+    }
+
+    @Test
     public void decodesIopModuleHeader() {
         byte[] b = new byte[40];
         word(b, 4, 0x1234);
