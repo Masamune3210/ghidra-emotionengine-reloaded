@@ -1,5 +1,6 @@
 // Read-only full-text APU opcode coverage audit for Sony DECKARD firmware.
 // Inspect recognized and unmatched OP=0 words; never disassemble or retype data.
+// v5 fixes mixed-case APU names (e.g. amf0B_u) being counted as mismatches.
 //@category PS2.DECKARD
 import java.util.Locale;
 import ghidra.app.script.GhidraScript;
@@ -10,7 +11,7 @@ import ghidra.program.model.listing.Listing;
 import ghidra.program.model.mem.Memory;
 import ghidra.program.model.mem.MemoryBlock;
 
-public class AuditDeckardApuCoverage_20261015_v4 extends GhidraScript {
+public class AuditDeckardApuCoverage_20261015_v5 extends GhidraScript {
     private static final class Op {
         final String name;
         final int xop;
@@ -141,7 +142,7 @@ public class AuditDeckardApuCoverage_20261015_v4 extends GhidraScript {
             documented++;
             matched.matches++;
             if (ins!=null) {
-                if (matched.name.equals(ins.getMnemonicString().toLowerCase(Locale.ROOT))) {
+                if (matched.name.equalsIgnoreCase(ins.getMnemonicString())) {
                     matched.decoded++; alreadyDecoded++;
                 } else {
                     matched.wrongMnemonic++; incorrectMnemonic++;
