@@ -34,3 +34,11 @@ Sources: PS2SDK iop/kernel/include/irx.h (import/export layouts and magic); orig
 - Other unrecognized class values now identify their exact value in diagnostics. The importer catches Gson `JsonParseException` and logs the cause rather than throwing an analyzer task exception.
 - Added JUnit tests for `"error"`, established builtin classes, and an unrecognized class value. The actual TESTSPU stdump JSON is not available, so it is **not yet confirmed** that `"error"` was its offending class; if not, the next log should expose the exact value.
 - Verification: upstream producer/parser source comparison and committed tests. Ghidra 12.1.3 build and rerun of TESTSPU are still pending.
+
+## Mutually exclusive EE/IOP recognition (2026-10-14)
+
+- Fixed incorrect Sony e_type classification: `0xff80` and `0xff81` are IOP relocatables, while `0xff90` and `0xff91` are EE relocatables. In particular, `0xff91` must **never** be recognized by the IOP IRX loader.
+- The IOP predicate now rejects R5900 machine bits (`(e_flags & 0x00ff0000) == 0x00920000`) even when paired with an IOP e_type. Contradictory headers are not trusted as IOP.
+- The EE `r5900.opinion` secondary mask now requires the R5900 machine variant (`0x00920000`) in addition to the previously required MIPS-III/ABI bits. Without the 5900 marker, generic MIPS ELF files cannot be selected as R5900 by this opinion.
+- Regression tests cover both valid IOP types, exclusion of both EE relocatable types, contradictory R5900 flags, and unrelated MIPS machine variants.
+- Scope: these rules govern specialized EE/IOP recognition; Ghidra's independent generic ELF loader can still list its own candidate. Existing Ghidra programs are not migrated by changing import rules. Runtime Ghidra Batch Import and Gradle tests still need verification against the rebuilt extension.
