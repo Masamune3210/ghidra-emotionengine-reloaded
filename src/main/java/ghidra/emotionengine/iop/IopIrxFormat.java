@@ -22,7 +22,14 @@ public final class IopIrxFormat {
         return u16(b, p) | (u16(b, p + 2) << 16);
     }
 
-    /** ET_IRX, ET_IRX2 and ET_ERX2 are Sony ELF types, not ET_REL. */
+    // Sony IOP relocatables use 0xff80/0xff81. The 0xff90/0xff91
+    // relocatable types belong to the Emotion Engine, not the IOP.
+    private static final int ET_SCE_IOPRELEXEC = 0xff80;
+    private static final int ET_SCE_IOPRELEXEC2 = 0xff81;
+    private static final int EF_MIPS_MACH_MASK = 0x00ff0000;
+    private static final int E_MIPS_MACH_5900 = 0x00920000;
+
+    /** Recognize only IOP relocatables, never R5900/EE executables. */
     public static boolean isIopElf(byte[] h) {
         if (h == null || h.length < 52 || h[0] != 0x7f ||
             h[1] != 'E' || h[2] != 'L' || h[3] != 'F' ||
@@ -31,8 +38,10 @@ public final class IopIrxFormat {
         }
         int type = u16(h, 16);
         int machine = u16(h, 18);
-        return (type == 0xff80 || type == 0xff81 || type == 0xff91) &&
-            (machine == 8 || machine == 10);
+        int flags = u32(h, 36);
+        return (type == ET_SCE_IOPRELEXEC || type == ET_SCE_IOPRELEXEC2) &&
+            (machine == 8 || machine == 10) &&
+            (flags & EF_MIPS_MACH_MASK) != E_MIPS_MACH_5900;
     }
 
     public static final class Module {
