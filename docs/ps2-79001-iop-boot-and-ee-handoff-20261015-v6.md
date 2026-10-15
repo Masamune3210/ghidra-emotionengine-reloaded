@@ -1,4 +1,4 @@
-# SCPH-79001 boot-chain reconstruction and MagicGate handoff, 2026-10-15 v5
+# SCPH-79001 boot-chain reconstruction and MagicGate handoff, 2026-10-15 v6
 
 ## User-confirmed EE database state
 
@@ -28,9 +28,12 @@ All 72 instruction anchors in `ReconstructScph79001IopBootAndConfigurations_2026
 
 ### Boot selection nuance that PCSX2 must eventually reproduce
 
+**User-confirmed correction:** `TBIN` is the PS1 backward-compatibility startup payload. It is **not** an alternate normal PS2 boot sequence. The two RESET names have different operational purposes: the TBIN path is for PS1 compatibility, while the IOPBOOT path is the one to trace for retail PS2 boot and subsequent MagicGate-related IOP module behavior. Do not conflate TBIN with an `IOPBTCON2` configuration or describe both as interchangeable PS2 boot modes.
+
+
 1. Both CPUs start with the same reset ROM; COP0 PRId separates EE `0xBFC00800` and IOP `0xBFC02000`.
-2. IOPRESET has a hardware-dependent choice of register initialization paths; the `0xBFC02680` ROMDIR finder is used to choose **TBIN or IOPBOOT** by module name. Do not assert that IOPBOOT is the only reset path.
-3. The IOPBOOT entry is `0xBFC4A000`. At `0xBFC4A0E8` it replaces the final byte of an `IOPBTCONF` string with ASCII `'0' + boot argument`; it tries this numbered variant (at `0xBFC4A100`) and falls back to the default name (at `0xBFC4A120`). This implements separate boot environments. The *actual runtime selector* is not established from ROM presence alone.
+2. IOPRESET has a hardware-dependent choice of register initialization paths; the `0xBFC02680` ROMDIR finder is used to choose **TBIN (PS1 compatibility)** or **IOPBOOT (normal PS2 startup)** by module name. Do not describe the PS1 TBIN branch as a competing normal PS2 cold boot.
+3. The IOPBOOT entry is `0xBFC4A000`. At `0xBFC4A0E8` it replaces the final byte of an `IOPBTCONF` string with ASCII `'0' + boot argument`; it tries this numbered variant (at `0xBFC4A100`) and falls back to the default name (at `0xBFC4A120`). This implements separate boot environments. For the specific observed RESET-to-IOPBOOT call, the configuration selector is `a1=0`: IOPBOOT tries `IOPBTCON0`, which is not in this ROMDIR, then falls back to `IOPBTCONF`. This is a specific flow, not proof that all later IOP resets select the same config.
 4. IOPBOOT parses the configuration text and resolves each listed ROM module, with a module-format classifier at `0xBFC4A600`. Two initial module load/entry paths start at `0xBFC4A330` and `0xBFC4A3AC`; indirect transfers occur at `0xBFC4A39C` and `0xBFC4A44C`. Both configs begin with SYSMEM and LOADCORE, which then take over later module loading.
 5. This is **ordinary startup/module loading**, not an established KELF decryption or MagicGate authentication step. Do not label any of these boot helpers as security/auth functions absent evidence.
 
@@ -107,8 +110,8 @@ No function signatures were invented; current Ghidra function parameters and ret
 
 ## Application script and next step
 
-`ghidra_scripts/ReconstructScph79001IopBootAndConfigurations_20261015_v1.java`: five file SHA checks, 72 opcode anchors, full ROMDIR and both config lists, conservative code markers, two datatype definitions, memory-safe optional declarations, ASCII config markers, and three reports (TXT, TSV, DOT) to Downloads. No source ROM byte edits. Source-reviewed; not run or compiled inside user's Ghidra yet. The script is for **`BOOTFLOW_IOP_combined_20261015_v1.elf` only**, imported separately with the IOP's little-endian MIPS language. Do not run it against the EE combined image or SECRMAN.
+`ghidra_scripts/ReconstructScph79001IopBootAndConfigurations_20261015_v1.java`: five file SHA checks, 72 opcode anchors, full ROMDIR and both config lists, conservative code markers, two datatype definitions, memory-safe optional declarations, ASCII config markers, and three reports (TXT, TSV, DOT) to Downloads. No source ROM byte edits. Source-reviewed and successfully run in user's Ghidra 12.1.3; details above. The script is for **`BOOTFLOW_IOP_combined_20261015_v1.elf` only**, imported separately with the IOP's little-endian MIPS language. Do not run it against the EE combined image or SECRMAN.
 
-User should now import the **IOP combined ELF** from the existing boot import bundle, select IOP-compatible little-endian MIPS, run auto-analysis, pull `testing`, run the application script, then return the script log + exported `.txt/.tsv/.dot` and ideally IOP `.gzf`. The first next reconstruction is LOADCORE's loading and relocations, followed by the actual point where SECRMAN gets initialized or where an EELOAD/UDNL reset changes the configuration. Eventually compare to PCSX2 full BIOS boot at the same observed milestones; fast boot is a separate control flow.
+**Executed and verified in user's Ghidra on 2026-10-15:** The IOP boot script passed five SHA-256 section checks, 72 original instruction words, all 105 ROMDIR entries and 29+24 configuration rows. It applied 9 function renames, 86 labels, 95 comments and 2 datatype declarations; preserved preexisting ROMDIR markup once; created no new functions; modified no firmware bytes. User provided an exported `BOOTFLOW_IOP_combined_20261015_v1.elf.gzf`. Exported IOP TXT, TSV and DOT reports are in user's Downloads but have not yet been provided in this conversation. **Do not ask to rerun or reimport the IOP program.** The first next reconstruction is LOADCORE's loading and relocations, followed by the actual point where SECRMAN gets initialized or where an EELOAD/UDNL reset changes the configuration. Eventually compare to PCSX2 full BIOS boot at the same observed milestones; fast boot is a separate control flow.
 
 No need to rebuild the extension for Script Manager script changes. Preserve the already verified EE RDRAM block and both model-specific and user-confirmed shared firmware metadata. Avoid redundant hash checks of previously proved shared model binaries.
