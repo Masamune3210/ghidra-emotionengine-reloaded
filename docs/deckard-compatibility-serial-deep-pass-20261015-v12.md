@@ -1,4 +1,7 @@
-# DECKARD comprehensive compatibility and serial patch pass, 2026-10-15 v11
+# DECKARD comprehensive compatibility and serial patch pass, 2026-10-15 v12
+
+
+**Supersedes v11:** the array at 0x00BE0A30 is \`char *[18]\` of name pointers, *not* an array of numeric defaults. The original v1 script/document were removed from the current branch to avoid applying the wrong datatype. All other verified facts are retained.
 
 ## Proven state before this pass
 User ran \`AnnotateDeckardPatchHookPredicates_20261015_v1.java\` against combined DECKARD ELF + DPATCH and reported: **32/32 DPATCH instruction anchors and 18/18 ROM compatibility records passed**, 10 labels, 11 pre-comments, 2 function refinements, zero skips/errors except intentional preservation of existing markup at 0x00A0F14C. Default restorer signature is \`void RestoreCompatibilityParameterDefaults(void)\`. The older dispatcher annotation likewise passed 32/32 mode pointers, kept Ghidra's existing jump-table markup, and applied 22 comments.
@@ -79,12 +82,12 @@ The serial structure is a conservative view of observed offsets at \`0x00BE07A8\
 0x00BE09E0 - 0x00BE0A27   uint32_t[18]       CompatibilityLiveValues
 0x00BE0A28 - 0x00BE0A2B   uint32_t           CompatibilityControlWord0
 0x00BE0A2C - 0x00BE0A2F   uint32_t           CompatibilityControlWord1
-0x00BE0A30 - 0x00BE0A77   uint32_t[18]       CompatibilityBootDefaults
+0x00BE0A30 - 0x00BE0A77   char *[18]         CompatibilityParameterNamePointers
 0x00BE0A78 - 0x00BE0ABF   DeckardCompatibilityValueCallback *[18] CompatibilityCallbackPointers
 0x00BE07A8 - 0x00BE07B6   DeckardSerialTimingStateView SerialControlTimingState
 \`\`\`
 
-Caveat: the \`0x00BE0A30\` table is not the ROM source of defaults. Firmware \`0x00A0C864\` fills it from the 18 ROM records while clearing state; defaults can then be assigned to the live array. This distinction matters in decompilation.
+Confirmed by original instructions: at \`0x00A0C8D4\`, \`lwz r11,8(r9)\` loads the **third field**, the ASCII-name pointer, from the ROM record. \`0x00A0C8DC\` stores it to \`0x00BE0A30[id]\`. This runtime table contains **char* names**, not numeric defaults. Numeric defaults come directly from the second record field (+4) when initializing live values.
 
 ### Function declarations (direct Ghidra function editor syntax, no semicolon)
 
@@ -140,7 +143,7 @@ void WriteRuntimePatchMode7Branch(void)
 
 These signatures apply only to known entries with exact firmware words and no conflicting user-defined signatures. The setter's \`parameterId == -1\`, \`newValue == 0\` request is a special reset command: it tail-branches from \`0x00A0C860\` to DPATCH \`0xFFFFD770\`. Getter returns 0 for invalid indexes. Setter writes live array then calls registered callback using the existing \`r3=parameterId, r4=newValue\` calling convention. Callback definition is inferred from this actual indirect call setup; no callback return is consumed.
 
-Initializer \`0x00A0C864\` zeroes bookkeeping and initializes 18 live parameters. DPATCH \`0xFFFFD770\` is a separately implemented reset path. The original serial-state update \`0x00A0AF90\` is called by \`0x00A0B1B0\`. Runtime mode 7 replaces that call with a relative \`bl\` into \`0xFFFFD5EC\`. No executable bytes should be patched in the static Ghidra DB.
+Initializer \`0x00A0C864\` clears bookkeeping, populates 18 parameter-name pointers, and initializes 18 live values via the setter. DPATCH \`0xFFFFD770\` is a separately implemented reset path. The original serial-state update \`0x00A0AF90\` is called by \`0x00A0B1B0\`. Runtime mode 7 replaces that call with a relative \`bl\` into \`0xFFFFD5EC\`. No executable bytes should be patched in the static Ghidra DB.
 
 ### Patch mode 7 timing coupling
 - At \`0xFFFFD5EC\`, the replacement decodes serial control bits and updates the serial-state view. It adds timebase-driven waits absent from the original.
@@ -150,7 +153,7 @@ Initializer \`0x00A0C864\` zeroes bookkeeping and initializes 18 live parameters
 
 ## Script and safety
 
-\`ghidra_scripts/EnrichDeckardCompatibilityAndSerialPatch_20261015_v1.java\` implements this batch. It checks **46 exact instruction anchors and all 18 IDs, values, pointer addresses, and ROM strings** before any metadata operation. It conditionally adds the enum, callback definition, partial serial view, named globals, typed global arrays, verified installer/compatibility/serial functions and signatures, 36 parameter/firmware-string labels, and comments. It leaves all already typed ranges, conflicting signatures, analyst labels and firmware bytes alone; no runtime-only branch references are fabricated. Re-running is safe.
+\`ghidra_scripts/EnrichDeckardCompatibilityAndSerialPatch_20261015_v2.java\` implements this batch. It checks **46 exact instruction anchors and all 18 IDs, values, pointer addresses, and ROM strings** before any metadata operation. It conditionally adds the enum, callback definition, partial serial view, named globals, typed global arrays, verified installer/compatibility/serial functions and signatures, 36 parameter/firmware-string labels, and comments. It leaves all already typed ranges, conflicting signatures, analyst labels and firmware bytes alone; no runtime-only branch references are fabricated. Re-running is safe.
 
 Source-reviewed but **not yet compiled or executed in Ghidra**. Run after pulling \`testing\`; no extension rebuild. Return output, especially SKIP/PRESERVE reasons, so remaining work can focus on genuine code analysis rather than repeating these settled observations.
 

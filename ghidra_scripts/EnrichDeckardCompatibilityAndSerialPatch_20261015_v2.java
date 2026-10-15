@@ -9,6 +9,7 @@ import ghidra.app.script.GhidraScript;
 import ghidra.program.model.address.Address;
 import ghidra.program.model.data.ArrayDataType;
 import ghidra.program.model.data.ByteDataType;
+import ghidra.program.model.data.CharDataType;
 import ghidra.program.model.data.CategoryPath;
 import ghidra.program.model.data.DataType;
 import ghidra.program.model.data.DataTypeConflictHandler;
@@ -36,7 +37,7 @@ import ghidra.program.model.mem.MemoryBlock;
 import ghidra.program.model.symbol.SourceType;
 import ghidra.program.model.symbol.Symbol;
 
-public class EnrichDeckardCompatibilityAndSerialPatch_20261015_v1 extends GhidraScript {
+public class EnrichDeckardCompatibilityAndSerialPatch_20261015_v2 extends GhidraScript {
     private static final long BASE_RECORDS = 0x00a0f14cL;
     private static final int COUNT = 18;
     private static final String MARKER = "DECKARD VERIFIED COMPAT/SERIAL: ";
@@ -519,7 +520,7 @@ public class EnrichDeckardCompatibilityAndSerialPatch_20261015_v1 extends Ghidra
         label(0x00be09e0L,"CompatibilityLiveValues");
         label(0x00be0a28L,"CompatibilityControlWord0");
         label(0x00be0a2cL,"CompatibilityControlWord1");
-        label(0x00be0a30L,"CompatibilityBootDefaults");
+        label(0x00be0a30L,"CompatibilityParameterNamePointers");
         label(0x00be0a78L,"CompatibilityCallbackPointers");
         label(0x00be07a8L,"SerialControlTimingState");
 
@@ -527,8 +528,9 @@ public class EnrichDeckardCompatibilityAndSerialPatch_20261015_v1 extends Ghidra
             COUNT*4,"compatibility live values[18]");
         declareIfUndefined(0x00be0a28L,u32,4,"compatibility control word 0");
         declareIfUndefined(0x00be0a2cL,u32,4,"compatibility control word 1");
-        declareIfUndefined(0x00be0a30L,new ArrayDataType(u32,COUNT,4),
-            COUNT*4,"compatibility initialized defaults[18]");
+        declareIfUndefined(0x00be0a30L,
+            new ArrayDataType(new PointerDataType(CharDataType.dataType,4,manager),COUNT,4),
+            COUNT*4,"compatibility parameter name pointers[18]");
         if (callbackPointer!=null)
             declareIfUndefined(0x00be0a78L,
                 new ArrayDataType(callbackPointer,COUNT,4),
@@ -545,7 +547,7 @@ public class EnrichDeckardCompatibilityAndSerialPatch_20261015_v1 extends Ghidra
             note(at,"Parameter "+i+" "+p.firmwareName+
                 " default="+p.defaultValue+"; data record 12 bytes; "+
                 "live value at 0x"+Long.toHexString(0x00be09e0L+i*4L)+
-                ", boot default at 0x"+Long.toHexString(0x00be0a30L+i*4L)+
+                ", name-pointer slot at 0x"+Long.toHexString(0x00be0a30L+i*4L)+
                 ", callback at 0x"+Long.toHexString(0x00be0a78L+i*4L)+".");
         }
 
@@ -563,7 +565,8 @@ public class EnrichDeckardCompatibilityAndSerialPatch_20261015_v1 extends Ghidra
             "Runtime patch redirect: SetCompatibilityParameterValue(-1,0) "+
             "tail-branches into DPATCH default restoration at 0xFFFFD770.");
         note(0x00a0c864L,
-            "Base firmware initializer: clears three 18-entry word arrays, "+
+            "Base firmware initializer: clears live values and callback pointer arrays, "+
+            "copies 18 name pointers into 0x00BE0A30 from ROM record offsets +8, "+
             "loads defaults/IDs from 0x00A0F14C, invokes setter 18 times, "+
             "and clears 0x00BE0A28 / 0x00BE0A2C.");
         note(0x00a0c948L,
@@ -579,8 +582,8 @@ public class EnrichDeckardCompatibilityAndSerialPatch_20261015_v1 extends Ghidra
             "Mutable compatibility parameter values, uint32_t[18]; "+
             "index 13 is PARAM_SIO0_DTR_SCK_DELAY.");
         note(0x00be0a30L,
-            "18 boot defaults staged from record default values "+
-            "at 0x00A0F14C, not independent parameter names.");
+            "18 char* parameter-name pointers copied from the third field (+0x08) "+
+            "of each 12-byte ROM record at 0x00A0F14C. Not numeric defaults.");
         note(0x00be0a78L,
             "18 callback function pointers. The setter invokes "+
             "nonzero callbacks through mtLR / blrl.");
@@ -622,9 +625,9 @@ public class EnrichDeckardCompatibilityAndSerialPatch_20261015_v1 extends Ghidra
             "Patch mode 7 dispatcher entry tail-branches into installer "+
             "at 0xFFFFD740.");
         note(0x00a0c8c0L,
-            "InitializeCompatibilityParameterValues copies parameter "+
-            "name pointers from default table into boot-default bookkeeping? "+
-            "VERIFY before refining individual array-element semantics.");
+            "The original firmware initializer copies the +8 name-pointer field "+
+            "from each ROM record into 0x00BE0A30[index]; the +4 "+
+            "numeric default field is supplied to the setter separately.");
 
         println("DECKARD COMPAT/SERIAL PASS: enum+callback+stateTypes="+
             createdDatatypes+" newFunctions="+createdFunctions+
