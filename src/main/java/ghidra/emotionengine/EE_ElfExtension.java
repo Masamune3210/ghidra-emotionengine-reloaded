@@ -146,29 +146,112 @@ public class EE_ElfExtension extends MIPS_ElfExtension {
 				.orElse(null);
 	}
 
-	private static void createMirrorBlocks(ElfLoadHelper helper) throws Exception {
-		// EE main RAM is 32 MiB; the accelerated alias excludes its first 1 MiB.
+	/**
+	 * Byte mapped EE aliases are optional conveniences, not mandatory ELF
+	 * sections. In particular, a ROM-aware/synthetic ELF may already load the
+	 * original bytes directly at 0xBFC00000. Never shadow or overwrite them.
+	 *
+	 * Treat each alias independently: one occupied range must not prevent
+	 * unrelated RAM/BIOS aliases from being created.
+	 */
+	private static void createMirrorBlocks(ElfLoadHelper helper) {
 		final long mainRamSize = 0x02000000L;
 		final long acceleratedRamSize = 0x01F00000L;
 		final long biosRomSize = 0x00400000L;
 
 		Program program = helper.getProgram();
 		Memory mem = program.getMemory();
-		Address ram = helper.getDefaultAddress(0x00000000);
-		Address start = helper.getDefaultAddress(0x20000000);
-		MemoryBlock uncachedRam = mem.createByteMappedBlock("RAM(uncached)", start, ram, mainRamSize, false);
-		uncachedRam.setWrite(true);
 
-		// 0x30100000 aliases physical RAM at 0x00100000, not 0x00000000.
-		ram = helper.getDefaultAddress(0x00100000);
-		start = helper.getDefaultAddress(0x30100000);
-		MemoryBlock acceleratedRam = mem.createByteMappedBlock("RAM(uncached_and_accelerated)", start, ram, acceleratedRamSize, false);
-		acceleratedRam.setWrite(true);
+		createOptionalMirror(helper, "RAM(uncached)", 0x20000000L,
+			0x00000000L, mainRamSize, true);
 
-		ram = helper.getDefaultAddress(0x1FC00000);
-		start = helper.getDefaultAddress(0x9FC00000);
-		mem.createByteMappedBlock("BIOS/rom09(cached)", start, ram, biosRomSize, false);
-		start = helper.getDefaultAddress(0xBFC00000);
-		mem.createByteMappedBlock("BIOS/rom0b(uncached)", start, ram, biosRomSize, false);
+		// 0x30100000 aliases physical RAM at 0x00100000.
+		createOptionalMirror(helper, "RAM(uncached_and_accelerated)", 0x30100000L,
+			0x00100000L, acceleratedRamSize, true);
+
+		/*
+		 * A conventional EE ELF uses a physical BIOS mapping at 0x1FC00000.
+		 * The PS2 boot-flow ELF deliberately puts its authentic RESET/ROMDIR
+		 * bytes in the execution alias at 0xBFC00000 instead. If that alias
+		 * is the only initialized source, mirror the cached view from it,
+		 * not from an empty physical region.
+		 *
+		 * Prefer a directly loaded, initialized block over a previously
+		 * synthesized byte-mapped alias. The destination overlapping the
+		 * source is harmless: createOptionalMirror will preserve the
+		 * existing block rather than attempting a conflicting allocation.
+		 */
+		long romSource = 0x1FC00000L;
+		if (!isDirectlyInitialized(mem, helper.getDefaultAddress(romSource)) &&
+				isDirectlyInitialized(mem, helper.getDefaultAddress(0xBFC00000L))) {
+			romSource = 0xBFC00000L;
+			helper.log("EE BIOS: ROM bytes already loaded at 0xBFC00000; " +
+				"using the imported bytes as the source for optional BIOS mirrors.");
+		}
+
+		createOptionalMirror(helper, "BIOS/rom09(cached)", 0x9FC00000L,
+			romSource, biosRomSize, false);
+		createOptionalMirror(helper, "BIOS/rom0b(uncached)", 0xBFC00000L,
+			romSource, biosRomSize, false);
+	}
+
+	private static boolean isDirectlyInitialized(Memory mem, Address address) {
+		MemoryBlock block = mem.getBlock(address);
+		return block != null && block.isInitialized() && !block.isMapped();
+	}
+
+	/**
+	 * Only the primary address space participates in the EE alias map.
+	 * An overlap anywhere in the requested target interval is sufficient
+	 * to preserve the imported memory, including partial overlaps.
+	 */
+	private static MemoryBlock findMirrorConflict(Memory mem, Address start, Address end) {
+		for (MemoryBlock block : mem.getBlocks()) {
+			if (!start.getAddressSpace().equals(block.getStart().getAddressSpace())) {
+				continue;
+			}
+			if (block.getEnd().compareTo(start) >= 0 &&
+					block.getStart().compareTo(end) <= 0) {
+				return block;
+			}
+		}
+		return null;
+	}
+
+	private static void createOptionalMirror(ElfLoadHelper helper, String name,
+			long destinationOffset, long sourceOffset, long length, boolean writable) {
+		Program program = helper.getProgram();
+		Memory mem = program.getMemory();
+		Address destination = helper.getDefaultAddress(destinationOffset);
+		Address source = helper.getDefaultAddress(sourceOffset);
+		Address end;
+		try {
+			end = destination.addNoWrap(length - 1);
+		}
+		catch (Exception e) {
+			helper.log("EE alias " + name + ": invalid target range: " + e.getMessage());
+			return;
+		}
+
+		MemoryBlock conflict = findMirrorConflict(mem, destination, end);
+		if (conflict != null) {
+			helper.log("EE alias " + name + " not created: existing block '" +
+				conflict.getName() + "' overlaps target " + destination +
+				".." + end + "; existing ELF memory preserved.");
+			return;
+		}
+
+		try {
+			MemoryBlock block = mem.createByteMappedBlock(name,
+				destination, source, length, false);
+			if (writable) {
+				block.setWrite(true);
+			}
+		}
+		catch (Exception e) {
+			// A failed optional alias must never abort the ELF import or
+			// prevent subsequent independent aliases from being attempted.
+			helper.log("EE alias " + name + " not created: " + e.getMessage());
+		}
 	}
 }
