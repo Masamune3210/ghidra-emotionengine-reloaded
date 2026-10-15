@@ -1,4 +1,17 @@
-# SCPH-79001 EE cold-boot reconstruction in Ghidra, 2026-10-15 v3
+# Compilation fix: EE boot script v2 (2026-10-15)
+
+The user attempted to compile v1 in Ghidra 12.1.3. Compiler reported exactly:
+
+```text
+AnnotateScph79001EeBootFlowAndRdram_20261015_v1.java:399: error: unreported exception ghidra.util.exception.CancelledException; must be caught or declared to be thrown
+            monitor.checkCancelled();
+```
+
+Cause: `annotateRomdir()` omitted `throws Exception`; its caller `run() throws Exception` already propagates cancellation, and `validate() throws Exception` already handles the other `monitor.checkCancelled()` call. v2 adds the checked-exception declaration and retains the cancellation semantics (it does not suppress cancellations). The v1 script was removed from `testing` to prevent selection of an obsolete file. No Ghidra database metadata was modified by the failed compile.
+
+Static source audit: these are the only two `monitor.checkCancelled()` calls, both now in functions declaring `throws Exception`. No Ghidra jar is installed in the assistant runtime, so a complete extension-bound Java compilation could not be performed. The updated script still needs its first runtime verification by the user.
+
+# SCPH-79001 EE cold-boot reconstruction in Ghidra, 2026-10-15 v4
 
 ## Objective and current user-verified database
 
@@ -80,7 +93,7 @@ Do not invent parameter signatures where their detailed ABI behavior is not yet 
 
 ## Script and exact application behavior
 
-`ghidra_scripts/AnnotateScph79001EeBootFlowAndRdram_20261015_v1.java` is the comprehensive database-application script. Before changing anything, it checks **all four section SHA-256 digests, 65 exact 32-bit ROM/kernel/loader anchor words, and all 105 ROMDIR entries**, confirming aligned total 4 MiB and key module sizes/positions. It requests **one** optional input file to fill the known missing RDRAM module: either an exact original 4 MiB SCPH-79001 BIOS (`SHA256 e76d9c8f4019041fb17f41fff25d57d608c1a3f205c99bda9eb47402c43e8c93`) or an extracted `RDRAM` file of exactly `0x3154` bytes (`SHA256 e3ae825c718eaaa285cf2a3e000bcc85d2047e50881a2144537410f6398d929d`). Incorrect bytes abort before modifications.
+`ghidra_scripts/AnnotateScph79001EeBootFlowAndRdram_20261015_v2.java` is the comprehensive database-application script. Before changing anything, it checks **all four section SHA-256 digests, 65 exact 32-bit ROM/kernel/loader anchor words, and all 105 ROMDIR entries**, confirming aligned total 4 MiB and key module sizes/positions. It requests **one** optional input file to fill the known missing RDRAM module: either an exact original 4 MiB SCPH-79001 BIOS (`SHA256 e76d9c8f4019041fb17f41fff25d57d608c1a3f205c99bda9eb47402c43e8c93`) or an extracted `RDRAM` file of exactly `0x3154` bytes (`SHA256 e3ae825c718eaaa285cf2a3e000bcc85d2047e50881a2144537410f6398d929d`). Incorrect bytes abort before modifications.
 
 The script safely adds the genuine immutable RDRAM bytes to the **unoccupied uncached `0xBFC41000..0xBFC44153`** (not over any existing block). The EE extension already created a byte-mapped cached ROM alias at `0x9FC00000`; after loading it tests that the **actual call target** `0x9FC41000` reads the authentic RDRAM bytes. It then disassembles/names the RDRAM entry where safe, annotates the verified RESET/KERNEL/EELOAD handoffs, adds all 105 ROMDIR entry labels/comments, flags boot/security-related modules, types only free tables, and places bookmarks without clearing Ghidra's prior analysis.
 

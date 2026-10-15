@@ -32,7 +32,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-public class AnnotateScph79001EeBootFlowAndRdram_20261015_v1 extends GhidraScript {
+public class AnnotateScph79001EeBootFlowAndRdram_20261015_v2 extends GhidraScript {
     private static final String BIOS_SHA = "e76d9c8f4019041fb17f41fff25d57d608c1a3f205c99bda9eb47402c43e8c93";
     private static final String RDRAM_SHA = "e3ae825c718eaaa285cf2a3e000bcc85d2047e50881a2144537410f6398d929d";
     private static final int RDRAM_FILE_OFFSET = 0x41000;
@@ -389,7 +389,7 @@ public class AnnotateScph79001EeBootFlowAndRdram_20261015_v1 extends GhidraScrip
         if ("-".equals(text))return "Padding";
         return text.replaceAll("[^A-Za-z0-9_]","_");
     }
-    private void annotateRomdir() {
+    private void annotateRomdir() throws Exception {
         DataType record=createRomdirType();
         typeFreeArray(0xBFC02780L,ROMDIR_COUNT,record,16);
         note(0xBFC02780L,"ROMDIR has 105 records (16 bytes each) followed by one " +
