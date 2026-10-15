@@ -1,4 +1,4 @@
-# DECKARD combined firmware control-plane and mode-7 recovery (2026-10-15 v13)
+# DECKARD combined firmware control-plane and mode-7 recovery (2026-10-15 v14)
 
 ## Verified baseline, user-supplied execution results
 - \`EnrichDeckardCompatibilityAndSerialPatch_20261015_v2.java\` ran successfully on the combined PowerPC:BE:32:DECKARD Ghidra program.
@@ -71,8 +71,10 @@ void UpdateSerialControlStateWithTiming(uint32_t controlWord)
 \`\`\`
 - Eight DPATCH selector jump-table arms are preserved within \`DispatchRuntimeCodePatch\`, and \`0xFFFFD740\` is an installer branch target from within the mode-7 switch case; do not split those into artificial functions.
 
+**v2 correction:** the callback function is named/created before any additional label at the same entry, avoiding an avoidable duplicate-symbol conflict. The prior v1 script and handoff have been superseded before user execution.
+
 ## One-pass application script
-\`ghidra_scripts/RecoverDeckardControlPlaneAndMode7_20261015_v1.java\`:
+\`ghidra_scripts/RecoverDeckardControlPlaneAndMode7_20261015_v2.java\`:
 - Checks **87 exact executable words** in original ELF+DPATCH before writing any metadata; aborts on mismatches.
 - Defines the MMIO offset enum and latch structure, and types the latch only if no other defined data/code exists.
 - Applies relevant labels/comments to both MMIO commands, three cache/TLB entry points, the callback registration, all six override call sites, the boot setup call, and the runtime serial hook.

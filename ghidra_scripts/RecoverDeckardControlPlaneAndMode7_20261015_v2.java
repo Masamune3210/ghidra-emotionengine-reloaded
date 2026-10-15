@@ -30,7 +30,7 @@ import ghidra.program.model.mem.MemoryBlock;
 import ghidra.program.model.symbol.SourceType;
 import ghidra.program.model.symbol.Symbol;
 
-public class RecoverDeckardControlPlaneAndMode7_20261015_v1 extends GhidraScript {
+public class RecoverDeckardControlPlaneAndMode7_20261015_v2 extends GhidraScript {
     private static final CategoryPath CATEGORY = new CategoryPath("/DECKARD");
     private static final String PREFIX = "DECKARD CONTROL PLANE: ";
     private static final long MODE7 = 0xffffd5ecL;
@@ -494,6 +494,8 @@ public class RecoverDeckardControlPlaneAndMode7_20261015_v1 extends GhidraScript
             "MMIO register 0x1A0 case selects parameter and reads value. "+
             "Next compare at 0x00A0662C selects register 0x1A4.");
 
+        // Create/rename a real function before adding any alias to that entry.
+        renameIfDefault(0x00a05df0L,"ApplyMipsDcacheConfiguration",true);
         label(0x00a05df0L,"ApplyMipsDcacheConfiguration");
         label(0x00a05d0cL,"ConfigureMipsDcacheEnabledTlb");
         label(0x00a05da4L,"ConfigureMipsDcacheDisabledTlb");
@@ -519,7 +521,6 @@ public class RecoverDeckardControlPlaneAndMode7_20261015_v1 extends GhidraScript
         note(0x00be0a20L,
             "CompatibilityLiveValues[16], PARAM_MIPS_DCACHE_ON (default=1). "+
             "Explicitly consulted by callback 0x00A05DF0.");
-        renameIfDefault(0x00a05df0L,"ApplyMipsDcacheConfiguration",true);
         refineReturnVoid(0x00a05df0L);
         refineCallbackRegistration();
 
