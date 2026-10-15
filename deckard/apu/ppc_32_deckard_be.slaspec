@@ -1,0 +1,9 @@
+# Sony DECKARD on PowerPC 4xx with custom MIPS APU instructions.
+# This is a separate language variant; stock PPC languages remain untouched.
+@define ENDIAN "big"
+@define REGISTER_SIZE "4"
+@define EATRUNC "ea"
+@define CTR_OFFSET "32"
+@include "ppc_common.sinc"
+@include "4xx.sinc"
+@include "deckard_apu.sinc"

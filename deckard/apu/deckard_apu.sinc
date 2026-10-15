@@ -1,0 +1,228 @@
+# DECKARD PowerPC auxiliary-processor opcode extension v1
+# Include AFTER ppc_common.sinc and 4xx.sinc, only in DECKARD variant.
+# Reference: https://israpps.github.io/PPC-Monitor/docs/APU/APU_opcodes.html
+# OP=0, PPC bits D=Rx (21:25), A=Ry (16:20), B=Rz (11:15), XOP=bits 1:10
+# APU hardware state is exposed via opaque p-code userops, NEVER silent no-ops.
+# Unknown instructions are intentionally not decoded.
+# The register operands use PPC's existing D/A/B attached GPR bindings.
+
+define pcodeop deckard_apu_exec;
+define pcodeop deckard_apu_exec_cr6;
+define pcodeop deckard_apu_execi;
+define pcodeop deckard_apu_execn;
+define pcodeop deckard_apu_get_cc;
+define pcodeop deckard_apu_get_hi;
+define pcodeop deckard_apu_get_lo;
+define pcodeop deckard_apu_get_pc;
+define pcodeop deckard_apu_read_04;
+define pcodeop deckard_apu_read_05;
+define pcodeop deckard_apu_read_addr;
+define pcodeop deckard_apu_read_funct;
+define pcodeop deckard_apu_read_gp;
+define pcodeop deckard_apu_read_gte;
+define pcodeop deckard_apu_read_imm;
+define pcodeop deckard_apu_read_op;
+define pcodeop deckard_apu_read_opcode_raw;
+define pcodeop deckard_apu_read_rd;
+define pcodeop deckard_apu_read_rs;
+define pcodeop deckard_apu_read_rt;
+define pcodeop deckard_apu_read_shift;
+define pcodeop deckard_apu_set_cc;
+define pcodeop deckard_apu_set_hi;
+define pcodeop deckard_apu_set_lo;
+define pcodeop deckard_apu_set_pc;
+define pcodeop deckard_apu_unknown_30c;
+define pcodeop deckard_apu_write_gp;
+define pcodeop deckard_apu_write_gte;
+
+# aexec 0x00C: Executes MIPS instruction and returns operand address; sets CR6
+:aexec D,A is OP=0 & XOP_1_10=0x6 & BIT_0=0 & D & A & B=0
+{
+    D = deckard_apu_exec(A); cr6 = deckard_apu_exec_cr6();
+}
+
+# aexeci 0x04C: Executes MIPS delay slot ignoring interrupt/cycle stop
+:aexeci D,A is OP=0 & XOP_1_10=0x26 & BIT_0=0 & D & A & B=0
+{
+    D = deckard_apu_execi(A); cr6 = deckard_apu_exec_cr6();
+}
+
+# aexecn 0x08C: Executes MIPS instruction without incrementing emulated PC
+:aexecn D,A is OP=0 & XOP_1_10=0x46 & BIT_0=0 & D & A & B=0
+{
+    D = deckard_apu_execn(A); cr6 = deckard_apu_exec_cr6();
+}
+
+# amtpc 0x20C: Sets emulated MIPS PC
+:amtpc A is OP=0 & XOP_1_10=0x106 & BIT_0=0 & D=0 & A & B=0
+{
+    deckard_apu_set_pc(A);
+}
+
+# amfpc 0x21C: Reads emulated MIPS PC
+:amfpc D is OP=0 & XOP_1_10=0x10e & BIT_0=0 & D & A=0 & B=0
+{
+    D = deckard_apu_get_pc();
+}
+
+# amtcc 0x24C: Sets MIPS cycle counter
+:amtcc A is OP=0 & XOP_1_10=0x126 & BIT_0=0 & D=0 & A & B=0
+{
+    deckard_apu_set_cc(A);
+}
+
+# amfcc 0x25C: Reads MIPS cycle counter
+:amfcc D is OP=0 & XOP_1_10=0x12e & BIT_0=0 & D & A=0 & B=0
+{
+    D = deckard_apu_get_cc();
+}
+
+# amthi 0x28C: Sets emulated MIPS HI
+:amthi A is OP=0 & XOP_1_10=0x146 & BIT_0=0 & D=0 & A & B=0
+{
+    deckard_apu_set_hi(A);
+}
+
+# amfhi 0x29C: Reads emulated MIPS HI
+:amfhi D is OP=0 & XOP_1_10=0x14e & BIT_0=0 & D & A=0 & B=0
+{
+    D = deckard_apu_get_hi();
+}
+
+# amtlo 0x2CC: Sets emulated MIPS LO
+:amtlo A is OP=0 & XOP_1_10=0x166 & BIT_0=0 & D=0 & A & B=0
+{
+    deckard_apu_set_lo(A);
+}
+
+# amflo 0x2DC: Reads emulated MIPS LO
+:amflo D is OP=0 & XOP_1_10=0x16e & BIT_0=0 & D & A=0 & B=0
+{
+    D = deckard_apu_get_lo();
+}
+
+# aunk0 0x30C: Hardware behavior unknown
+:aunk0 is OP=0 & XOP_1_10=0x186 & BIT_0=0 & D=0 & A=0 & B=0
+{
+    deckard_apu_unknown_30c();
+}
+
+# amtgp 0x38C: Writes dynamic MIPS GPR selected by PPC A
+:amtgp A,B is OP=0 & XOP_1_10=0x1c6 & BIT_0=0 & D=0 & A & B
+{
+    deckard_apu_write_gp(A, B);
+}
+
+# amfgp 0x39C: Reads dynamic MIPS GPR selected by PPC A
+:amfgp D,A is OP=0 & XOP_1_10=0x1ce & BIT_0=0 & D & A & B=0
+{
+    D = deckard_apu_read_gp(A);
+}
+
+# amtgte 0x3CC: Writes indexed GTE/APU register
+:amtgte A,B is OP=0 & XOP_1_10=0x1e6 & BIT_0=0 & D=0 & A & B
+{
+    deckard_apu_write_gte(A, B);
+}
+
+# amfgte 0x3DC: Reads indexed GTE/APU register
+:amfgte D,A is OP=0 & XOP_1_10=0x1ee & BIT_0=0 & D & A & B=0
+{
+    D = deckard_apu_read_gte(A);
+}
+
+# amf04 0x41C: Reads APU reg 0x04 (status)
+:amf04 D is OP=0 & XOP_1_10=0x20e & BIT_0=0 & D & A=0 & B=0
+{
+    D = deckard_apu_read_04();
+}
+
+# amf05 0x45C: Reads APU reg 0x05 (partially understood)
+:amf05 D is OP=0 & XOP_1_10=0x22e & BIT_0=0 & D & A=0 & B=0
+{
+    D = deckard_apu_read_05();
+}
+
+# amfop 0x49C: Reads shifted opcode index
+:amfop D is OP=0 & XOP_1_10=0x24e & BIT_0=0 & D & A=0 & B=0
+{
+    D = deckard_apu_read_op();
+}
+
+# amfrd 0x4DC: Reads decoded MIPS RD
+:amfrd D is OP=0 & XOP_1_10=0x26e & BIT_0=0 & D & A=0 & B=0
+{
+    D = deckard_apu_read_rd();
+}
+
+# amf04_u 0x51C: Alternate encoding APU reg 0x04
+:amf04_u D is OP=0 & XOP_1_10=0x28e & BIT_0=0 & D & A=0 & B=0
+{
+    D = deckard_apu_read_04();
+}
+
+# amf05_u 0x55C: Alternate encoding APU reg 0x05
+:amf05_u D is OP=0 & XOP_1_10=0x2ae & BIT_0=0 & D & A=0 & B=0
+{
+    D = deckard_apu_read_05();
+}
+
+# amf06_u 0x59C: Alternate encoding APU reg 0x06
+:amf06_u D is OP=0 & XOP_1_10=0x2ce & BIT_0=0 & D & A=0 & B=0
+{
+    D = deckard_apu_read_op();
+}
+
+# amf07_u 0x5DC: Alternate encoding APU reg 0x07
+:amf07_u D is OP=0 & XOP_1_10=0x2ee & BIT_0=0 & D & A=0 & B=0
+{
+    D = deckard_apu_read_rd();
+}
+
+# amf08_u 0x61C: Reads unshifted MIPS opcode
+:amf08_u D is OP=0 & XOP_1_10=0x30e & BIT_0=0 & D & A=0 & B=0
+{
+    D = deckard_apu_read_opcode_raw();
+}
+
+# amf09_u 0x65C: Reads MIPS RS
+:amf09_u D is OP=0 & XOP_1_10=0x32e & BIT_0=0 & D & A=0 & B=0
+{
+    D = deckard_apu_read_rs();
+}
+
+# amf0A_u 0x69C: Reads MIPS RT
+:amf0A_u D is OP=0 & XOP_1_10=0x34e & BIT_0=0 & D & A=0 & B=0
+{
+    D = deckard_apu_read_rt();
+}
+
+# amf0B_u 0x6DC: Reads MIPS RD
+:amf0B_u D is OP=0 & XOP_1_10=0x36e & BIT_0=0 & D & A=0 & B=0
+{
+    D = deckard_apu_read_rd();
+}
+
+# amf0C_u 0x71C: Reads MIPS immediate
+:amf0C_u D is OP=0 & XOP_1_10=0x38e & BIT_0=0 & D & A=0 & B=0
+{
+    D = deckard_apu_read_imm();
+}
+
+# amf0D_u 0x75C: Reads MIPS target address field
+:amf0D_u D is OP=0 & XOP_1_10=0x3ae & BIT_0=0 & D & A=0 & B=0
+{
+    D = deckard_apu_read_addr();
+}
+
+# amf0E_u 0x79C: Reads MIPS FUNCT
+:amf0E_u D is OP=0 & XOP_1_10=0x3ce & BIT_0=0 & D & A=0 & B=0
+{
+    D = deckard_apu_read_funct();
+}
+
+# amf0F_u 0x7DC: Reads MIPS SHIFT
+:amf0F_u D is OP=0 & XOP_1_10=0x3ee & BIT_0=0 & D & A=0 & B=0
+{
+    D = deckard_apu_read_shift();
+}

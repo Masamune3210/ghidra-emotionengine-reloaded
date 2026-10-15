@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<language_definitions>
+  <language processor="PowerPC" endian="big" size="32"
+            variant="DECKARD" version="1.0"
+            slafile="ppc_32_deckard_be.sla" processorspec="ppc_32.pspec"
+            id="PowerPC:BE:32:DECKARD">
+    <description>Sony DECKARD PPC4xx with MIPS auxiliary processor instructions</description>
+    <compiler name="default" spec="ppc_32.cspec" id="default"/>
+  </language>
+</language_definitions>
