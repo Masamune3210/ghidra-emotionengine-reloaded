@@ -170,6 +170,7 @@ tasks.register('compileCccAuditScripts', JavaCompile) {
         include 'AuditCccBitfieldLayouts_20261012_v1.java'
         include 'AuditTestSpuLegacyUnsigned_20261012_v2.java'
         include 'AuditIopIrxModuleMetadata_20261012_v3.java'
+        include 'AuditDeckardApuDecode_20261015_v1.java'
     }
     classpath = sourceSets.main.compileClasspath
     destinationDirectory = layout.buildDirectory.dir('compiledCccAuditScripts')
@@ -183,4 +184,62 @@ tasks.named('test') {
 // Ensure new packages contain the CCC 2.x native executable and validated scripts.
 tasks.named('buildExtension') {
     dependsOn(tasks.named('prepareStdump'), tasks.named('compileCccAuditScripts'))
+}
+
+
+// DECKARD ships as part of this extension, not as a modification of stock PPC.
+// Build against Ghidra's matching PowerPC 4xx specification and bundle the
+// dependencies in this extension's data/languages directory.
+def deckardPpcSourceDir = file("${ghidraInstallDir}/Ghidra/Processors/PowerPC/data/languages")
+def deckardPpcDependencies = [
+    'ppc_common.sinc', 'ppc_instructions.sinc', 'ppc_embedded.sinc',
+    'lmwInstructions.sinc', 'lswInstructions.sinc', 'mulhwInstructions.sinc',
+    'stmwInstructions.sinc', 'stswiInstructions.sinc', '4xx.sinc',
+    'ppc_32.pspec', 'ppc_32.cspec'
+]
+
+tasks.register('stageDeckardPpcLanguage', Copy) {
+    group = 'build'
+    description = 'Stage matching stock PPC4xx definitions for DECKARD extension'
+    from(deckardPpcSourceDir) {
+        include deckardPpcDependencies
+    }
+    into file('data/languages')
+    doFirst {
+        def missing = deckardPpcDependencies.findAll {
+            !new File(deckardPpcSourceDir, it).isFile()
+        }
+        if (!missing.isEmpty()) {
+            throw new GradleException("Missing Ghidra PowerPC language dependencies: ${missing}")
+        }
+    }
+}
+
+def deckardIsWindows = System.getProperty('os.name').toLowerCase(java.util.Locale.ROOT).contains('windows')
+def deckardSleigh = file("${ghidraInstallDir}/support/${deckardIsWindows ? 'sleigh.bat' : 'sleigh'}")
+
+tasks.register('compileDeckardSleigh', Exec) {
+    group = 'build'
+    description = 'Compile DECKARD APU PowerPC language inside extension'
+    dependsOn tasks.named('stageDeckardPpcLanguage')
+    workingDir file('data/languages')
+    inputs.files(files('data/languages/deckard_apu.sinc',
+                       'data/languages/ppc_32_deckard_be.slaspec'))
+    inputs.files(deckardPpcDependencies.collect { file("data/languages/${it}") })
+    outputs.file(file('data/languages/ppc_32_deckard_be.sla'))
+    if (deckardIsWindows) {
+        commandLine('cmd', '/c', deckardSleigh.absolutePath, 'ppc_32_deckard_be.slaspec')
+    } else {
+        commandLine(deckardSleigh.absolutePath, 'ppc_32_deckard_be.slaspec')
+    }
+    doFirst {
+        if (!deckardSleigh.isFile()) {
+            throw new GradleException("Missing Ghidra Sleigh compiler launcher: ${deckardSleigh}")
+        }
+    }
+}
+
+// Build and package with the normal Ghidra extension Gradle workflow.
+tasks.named('buildExtension') {
+    dependsOn tasks.named('compileDeckardSleigh')
 }

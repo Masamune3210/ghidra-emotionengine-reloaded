@@ -1,0 +1,13 @@
+# Version-matched stock PPC4xx files staged into this extension by Gradle
+ppc_common.sinc
+ppc_instructions.sinc
+ppc_embedded.sinc
+lmwInstructions.sinc
+lswInstructions.sinc
+mulhwInstructions.sinc
+stmwInstructions.sinc
+stswiInstructions.sinc
+4xx.sinc
+ppc_32.pspec
+ppc_32.cspec
+ppc_32_deckard_be.sla
