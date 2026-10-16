@@ -1,4 +1,4 @@
-# PS2 IOP boot and MagicGate handoff, 2026-10-15 v7
+# PS2 IOP boot and MagicGate handoff, 2026-10-15 v8
 
 ## Already executed and verified
 - Ghidra SCPH-79001 EE combined boot: RESET, ROMDIR, KERNEL, EELOAD, plus RDRAM imported from original BIOS; 65 verified words; 535 functions after script; script reported 10 created, 11 renamed, 143 labels, 172 comments, 7 bookmarks; existing markups preserved.
@@ -41,3 +41,80 @@ The first two function entrypoints are verified from `.iopmod` and ELF headers; 
 Rebuild and reinstall the Java extension, then import the existing extracted **SYSMEM** and **LOADCORE** ROM0 IRX files individually using the PlayStation 2 IOP IRX loader, not raw binary import. Let auto-analysis complete; return each `.gzf` plus any relocation messages. Then recover true first-two-module startup semantics, the LOADCORE relocation and linking pipeline, and the point at which later configured modules including SECRMAN are initialized. The already verified IOP combined boot program should be preserved without reimporting.
 
 A source-level fix is committed but not tested in the user's Ghidra runtime. Pure parser regression tests were added; complete extension build is not available within the assistant environment.
+
+## 2026-10-15 v8: recovered existing SYSMEM/LOADCORE Ghidra metadata
+
+The user supplied their **existing**, already analyzed Ghidra `SYSMEM.bin.gzf` and `LOADCORE.bin.gzf` exported from SCPH-39001. The original SCPH-79001 extracted IRX SHA-256 fingerprints **exactly equal** those in the user-provided SCPH-39001 database properties:
+
+- SYSMEM: `1b03e6ffd2042c2545cf1a78ab937b6b57ccda037783e7ad52467bb9f5556054`; existing 12 functions, 16 recognized export ordinals.
+- LOADCORE: `b7eef224d6473362d49f9e890d89c3bbeb0d243c56f6961bdb4e772ba5b1632b`; existing 34 functions, sysmem imports ordinal 4, 5, 6, but no loadcore export labels in the archive (old loader rejected first zero entry).
+- The difference in Ghidra's `# of Bytes` versus original ELF disk length is **not** a difference between firmware module payloads. Do not ask to recompare, reimport or re-analyze these files.
+
+Directly verified from original ELF .text and .rel.text:
+
+```text
+SYSMEM:
+  export header 0x0000, 16 entries, terminator 0x0054
+  ordinal 3 -> 0x0460 GetSysmemInternalData
+  ordinal 4 -> 0x02EC AllocSysMemory
+  ordinal 5 -> 0x033C FreeSysMemory
+  ordinal 6 -> 0x0204 QueryMemSize
+  ordinal 7 -> 0x0230 QueryMaxFreeMemSize
+  ordinal 8 -> 0x0294 QueryTotalFreeMemSize
+  ordinal 9 -> 0x03A4 QueryBlockTopAddress
+  ordinal 10 -> 0x040C QueryBlockSize
+  ordinal 14 -> 0x0B90 Kprintf
+  ordinal 15 -> 0x0BDC KprintfSet
+  .bss state 0x0C80, pointer returned by GetSysmemInternalData
+
+LOADCORE:
+  module entry: 0x0000, bootstrap body 0x0030
+  loadcore export header 0x1B60, 25 ordinals; terminator at 0x1BD8
+  ordinal 0 slot 0x1B74 -> 0x0000, R_MIPS_32 relocation (not terminator)
+  ordinal 3 -> 0x0E04 GetLoadcoreInternalData
+  ordinal 4 -> 0x1910 FlushIcache
+  ordinal 5 -> 0x1A14 FlushDcache
+  ordinal 6 -> 0x0898 RegisterLibraryEntries
+  ordinal 7 -> 0x0AB8 ReleaseLibraryEntries
+  ordinal 8 -> 0x0C00 LinkLibraryEntries
+  ordinal 9 -> 0x0CBC UnLinkLibraryEntries
+  ordinal 10 -> 0x0A58 RegisterNonAutoLinkEntries
+  ordinal 11 -> 0x0B94 QueryLibraryEntryTable
+  ordinal 12 -> 0x0640 QueryBootMode
+  ordinal 13 -> 0x05E4 RegisterBootMode
+  ordinal 14 -> 0x0E14 LockLibraryClient
+  ordinal 15 -> 0x0E28 UnLockLibraryClient
+  ordinal 16 -> 0x0740 RegisterModule
+  ordinal 17 -> 0x07BC ReleaseModule
+  ordinal 20 -> 0x069C AddRebootNotifyHandler
+  ordinal 21 -> 0x1B18 SetCacheCtrl
+  ordinal 22 -> 0x1260 ProbeExecutableObject
+  ordinal 23 -> 0x1450 LoadExecutableObject
+  ordinal 24 -> 0x0828 SearchModuleCBByAddr
+  sysmem import table: 0x1BF0
+  0x1C04 sysmem ord4 AllocSysMemory -> SYSMEM .text+0x02EC
+  0x1C0C sysmem ord5 FreeSysMemory -> SYSMEM .text+0x033C
+  0x1C14 sysmem ord6 QueryMemSize -> SYSMEM .text+0x0204
+```
+
+The semantic mapping is corroborated with PS2SDK `iop/system/sysmem/include/sysmem.h` and `iop/system/loadcore/include/loadcore.h` declared ordinals; it is not inferred from mere function similarity. Entry offsets and relocation evidence independently match original ROM ELF sections. Ordinals without independently supported names retain ordinal-based labels. These are **module-relative addresses**; they do not establish actual IOP RAM load addresses or that SECRMAN authentication runs at boot.
+
+Editor-valid useful signatures (optional manual application; script deliberately does not overwrite function signatures or storage):
+
+```text
+0x000002EC: void * AllocSysMemory(int mode, int size, void * address)
+0x0000033C: int FreeSysMemory(void * address)
+0x00000204: uint QueryMemSize(void)
+0x00000898: int RegisterLibraryEntries(void * exportTable)
+0x00000AB8: int ReleaseLibraryEntries(void * exportTable)
+0x00000C00: int LinkLibraryEntries(void * image, int size)
+0x00000CBC: int UnLinkLibraryEntries(void * image, int size)
+0x00001260: int ProbeExecutableObject(void * image, void * outFileInfo)
+0x00001450: int LoadExecutableObject(void * image, void * fileInfo)
+```
+
+New reusable directly runnable Ghidra Java script: `ghidra_scripts/RecoverExistingIopBootLibraryMetadata_20261015_v1.java`. Run it separately against existing SYSMEM.bin and LOADCORE.bin, no imports or extension rebuild. Script SHA-guards the program, verifies export contents and SYSMEM import stubs, creates correct labels and function names if generically named, links export table slots to in-program functions where mapped, annotates existing LOADCORE call sites to sysmem ordinal 4/5/6, creates an optional 0x14-byte IOP library-header structure only on undefined markup, and records unresolved details in timestamped reports under Downloads. It never clears code, changes preexisting signatures, or writes binary bytes. It is source-reviewed but **not yet run inside Ghidra**.
+
+Important datatype caveat: the original SYSMEM `.bss` is only 0x10 bytes starting at 0x0C80. Although `GetSysmemInternalData` returns that address, do not blindly apply the newer, 0x14-byte PS2SDK `sysmem_internals_t` there without runtime-specific evidence; the script labels/comments the state but preserves its current type and layout.
+
+Next analysis should use LOADCORE's now recoverable `RegisterLibraryEntries` / `LinkLibraryEntries` and `ProbeExecutableObject` / `LoadExecutableObject` to trace SECRMAN's load and export resolution. The source code cannot be treated as proof of PCSX2's runtime correctness: compare full BIOS boot later, using observed mode and load configuration.
