@@ -1,4 +1,4 @@
-# PS2 IOP boot and MagicGate handoff, 2026-10-15 v8
+# PS2 IOP boot and MagicGate handoff, 2026-10-16 v9
 
 ## Already executed and verified
 - Ghidra SCPH-79001 EE combined boot: RESET, ROMDIR, KERNEL, EELOAD, plus RDRAM imported from original BIOS; 65 verified words; 535 functions after script; script reported 10 created, 11 renamed, 143 labels, 172 comments, 7 bookmarks; existing markups preserved.
@@ -118,3 +118,13 @@ New reusable directly runnable Ghidra Java script: `ghidra_scripts/RecoverExisti
 Important datatype caveat: the original SYSMEM `.bss` is only 0x10 bytes starting at 0x0C80. Although `GetSysmemInternalData` returns that address, do not blindly apply the newer, 0x14-byte PS2SDK `sysmem_internals_t` there without runtime-specific evidence; the script labels/comments the state but preserves its current type and layout.
 
 Next analysis should use LOADCORE's now recoverable `RegisterLibraryEntries` / `LinkLibraryEntries` and `ProbeExecutableObject` / `LoadExecutableObject` to trace SECRMAN's load and export resolution. The source code cannot be treated as proof of PCSX2's runtime correctness: compare full BIOS boot later, using observed mode and load configuration.
+
+## Updated execution state, Dragon firmware handoff (2026-10-16)
+
+The user executed `RecoverExistingIopBootLibraryMetadata_20261015_v1.java` successfully in **both pre-existing, byte-identical SCPH-39001/SCPH-79001 module databases**. SYSMEM: 12 -> **16** functions, 4 created, 24 labels, 18 comments, 16 exports checked. LOADCORE: 34 -> **43** functions, 12 renamed, 9 created, 30 labels, 41 comments, relocated ordinal zero verified; 25 exports plus SYSMEM ordinals 4/5/6 identified. Existing library header markup and original bytes preserved. No duplicate imports needed.
+
+The user supplied **Dragon MechaCon 6.12 ARMv4T Ghidra .gzf** for MagicGate follow-up. A firmware-grounded scan found three Thumb internal state dispatchers (0x15DD0 for 0x90-0x93 from SRAM 0x02000277, 0x2AFC8 for 0x70-0x73 and 0x2B070 for 0x80-0x83 from SRAM 0x02000489). These values are *not yet proven to be external MagicGate SCMDs*. Bytes 0x80-0x97 inside 0x38438..0x3849B belong to a verified 100-byte packed BCD lookup, **not an SCMD table**. See `docs/ps2-dragon612-magicgate-interface-handoff-20261016-v1.md` for verified ROM SHA, byte evidence, datatype changes, expected comments and next steps.
+
+A directly runnable, read-mostly Ghidra script `ghidra_scripts/AuditDragon612SecurityStateMachines_20261016_v1.java` SHA-guards the already analyzed Dragon program and applies *only* verified generic state-machine labels/notes and conservative RAM/BCD data declarations. Exports a detailed audit, decoded CMP candidate TSV, and selected decompilations to Downloads. It **has not yet run inside the user's Ghidra**. Do not treat any candidate as proven MechaCon authentication before packet ingress/response data are traced.
+
+**Priority:** stop expanding generic BOOTFLOW/LOADCORE metadata unless it blocks MagicGate. Compare actual MechaCon auth and KELF I/O against PCSX2 CDVD.cpp SCMD 0x80-0x97 and MemoryCardProtocol authentication. Preserve all existing Ghidra work; no firmware reimport, model-equivalence rehashing, or extra DECKARD work.
