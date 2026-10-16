@@ -1,4 +1,4 @@
-# PS2 IOP boot and MagicGate handoff, 2026-10-16 v9
+# PS2 IOP boot and MagicGate handoff, 2026-10-16 v10
 
 ## Already executed and verified
 - Ghidra SCPH-79001 EE combined boot: RESET, ROMDIR, KERNEL, EELOAD, plus RDRAM imported from original BIOS; 65 verified words; 535 functions after script; script reported 10 created, 11 renamed, 143 labels, 172 comments, 7 bookmarks; existing markups preserved.
@@ -128,3 +128,11 @@ The user supplied **Dragon MechaCon 6.12 ARMv4T Ghidra .gzf** for MagicGate foll
 A directly runnable, read-mostly Ghidra script `ghidra_scripts/AuditDragon612SecurityStateMachines_20261016_v1.java` SHA-guards the already analyzed Dragon program and applies *only* verified generic state-machine labels/notes and conservative RAM/BCD data declarations. Exports a detailed audit, decoded CMP candidate TSV, and selected decompilations to Downloads. It **has not yet run inside the user's Ghidra**. Do not treat any candidate as proven MechaCon authentication before packet ingress/response data are traced.
 
 **Priority:** stop expanding generic BOOTFLOW/LOADCORE metadata unless it blocks MagicGate. Compare actual MechaCon auth and KELF I/O against PCSX2 CDVD.cpp SCMD 0x80-0x97 and MemoryCardProtocol authentication. Preserve all existing Ghidra work; no firmware reimport, model-equivalence rehashing, or extra DECKARD work.
+
+## 2026-10-16 v10: MechaCon callback indirection and peripheral I/O evidence
+
+The user ran `AuditDragon612SecurityStateMachines_20261016_v1.java` successfully (ROM hash verified, 3 dispatchers, 43 decoded CMP candidates, 8 decompilations, only conservative metadata applied). All reports returned. It showed zero incoming Ghidra references to two state dispatchers, which does **not** imply dead code: original ROM contains the 18-entry callback table at `0x38680-0x386C7`, index 5 `0x2AFC9` and index 6 `0x2B071`. `0x2A604` reads callback index from `0x02000488`, loads the table entry and invokes it using `BX R7` thunk `0x3585E`. Direct Thumb BL from polling loop `0x29AF2` to `0x2A604` was verified. A separate direct BL from `0x151C2` to `0x15DD0` exists for the unrelated `0x90..0x93` state dispatcher.
+
+The callback methods `0x2BAC4` and `0x2BC24` operate MMIO at `0x036000A0`; `0x29E0C` operates MMIO at `0x03005000` and triggers `0x03808004`. This demonstrates hardware-facing control flow, **not the peripheral's identity or any external MagicGate command mapping**. All 18 table pointers, all 11 ROM literals and all 11 Thumb instruction halfwords verified against the same original Dragon 6.12 ROM. Details and actionable addresses in `docs/ps2-dragon612-callback-dispatch-handoff-20261016-v2.md`.
+
+New script `ghidra_scripts/TraceDragon612ControllerCallbacks_20261016_v2.java` uses SHA/opcode/pointer guards, annotates/links the 18 entries and confirmed three BL edges without touching existing function bodies or signatures; exports an indirect-call audit and **new**, non-duplicated decompilation roots for likely external ingress to Downloads. This is source-reviewed but not yet Ghidra-run. Preserve earlier Dragon functions and ROM. Further effort must trace command ingress and status response before comparing PCSX2 MagicGate cases.
