@@ -1,0 +1,1000 @@
+DRAGON 6.12 QUEUE WORKER / MMIO AUDIT v9 (READ ONLY)
+SHA256 18371ba394e6339d861cfe19db7db7c9e44c8067114888421ee4a35feaaeba1b ROM bytes=0x44000; 18 callback words exact
+Aim: follow queue flags 02000028, descriptor 0200002C, storage MMIO 03003104; hardware block peripheral 03004100 is separate.
+All offsets in this report are ROM addresses unless explicitly prefixed RAM/MMIO.
+
+===== ROOTS AND CALL-SITE INSTRUCTION WINDOWS =====
+
+ROOT 00030C40 exact=FUN_00030c40@00030c40 owner=FUN_00030c40@00030c40
+  00030c24 mov r0,#0xff
+  00030c28 ldr r1,[0x30be0]
+  00030c2c strb r0,[r1,#0x4]
+  00030c30 mov r0,#0x0
+  00030c34 ldr r1,[0x30be0]
+  00030c38 str r0,[r1,#0x10]
+  00030c3c bx lr
+  00030c40 stmdb sp!,{r4,r5,r6,lr}   <== target
+  00030c44 sub sp,sp,#0x8
+  00030c48 ldr r0,[0x31008]
+  00030c4c ldrb r0,[r0,#0x0]
+  00030c50 cmp r0,#0x1
+  00030c54 beq 0x00030c74
+  00030c58 cmp r0,#0x2
+  00030c5c beq 0x00030cf4
+  00030c60 cmp r0,#0x3
+  00030c64 beq 0x00030ea8
+  00030c68 cmp r0,#0x4
+  00030c6c beq 0x00030f40
+  00030c70 b 0x00030fc8
+
+ROOT 00008378 exact=FUN_00008378@00008378 owner=FUN_00008378@00008378
+  00008378 push {r3,r4,r5,r6,r7,lr}   <== target
+  0000837a adds r4,r1,#0x0
+  0000837c adds r5,r0,#0x0
+  0000837e movs r7,#0x1
+  00008380 movs r1,#0x0
+  00008382 movs r0,#0x1
+  00008384 bl 0x00037530
+  00008388 str r0,[sp,#0x0]
+  0000838a ldr r0,[sp,#0x0]
+  0000838c cmp r0,#0x0
+  0000838e bne 0x000083ce
+  00008390 ldr r3,[0x000083dc]
+  00008392 cmp r5,r3
+  00008394 ble 0x0000839a
+  00008396 movs r7,#0x4
+  00008398 b 0x000083c8
+  0000839a ldr r0,[0x000083e0]
+  0000839c ldr r0,[r0,#0x0]
+  0000839e movs r3,#0x1
+  000083a0 orrs r0,r3
+
+ROOT 000083E8 exact=FUN_000083e8@000083e8 owner=FUN_000083e8@000083e8
+  000083c6 str r0,[r1,#0x0]
+  000083c8 movs r0,#0x1
+  000083ca bl 0x00037538
+  000083ce adds r0,r7,#0x0
+  000083d0 pop {r3,r4,r5,r6,r7}
+  000083d2 pop {r3}
+  000083d4 bx r3
+  000083e8 push {r4,r5,r6,r7,lr}   <== target
+  000083ea adds r5,r0,#0x0
+  000083ec adds r6,r1,#0x0
+  000083ee movs r7,#0x1
+  000083f0 movs r1,#0x0
+  000083f2 movs r0,#0x1
+  000083f4 bl 0x00037530
+  000083f8 adds r4,r0,#0x0
+  000083fa cmp r4,#0x0
+  000083fc bne 0x00008442
+  000083fe ldr r3,[0x00008450]
+  00008400 cmp r5,r3
+  00008402 ble 0x0000840e
+
+ROOT 0000899C exact=FUN_0000899c@0000899c owner=FUN_0000899c@0000899c
+  0000897c lsrs r0,r0,#0x8
+  0000897e bcc 0x00008982
+  00008980 b 0x00008978
+  00008982 add sp,#0x8
+  00008984 pop {r4,r5,r6,r7}
+  00008986 pop {r3}
+  00008988 bx r3
+  0000899c push {r4,r5,r6,r7,lr}   <== target
+  0000899e adds r5,r0,#0x0
+  000089a0 movs r7,#0x80
+  000089a2 movs r1,#0x0
+  000089a4 movs r0,#0x1
+  000089a6 bl 0x00037530
+  000089aa adds r4,r0,#0x0
+  000089ac cmp r4,#0x0
+  000089ae bne 0x00008a0c
+  000089b0 ldr r0,[0x00008a18]
+  000089b2 ldr r0,[r0,#0x0]
+  000089b4 movs r3,#0x1
+  000089b6 orrs r0,r3
+
+ROOT 00008A28 exact=FUN_00008a28@00008a28 owner=FUN_00008a28@00008a28
+  00008a04 strb r0,[r5,#0x0]
+  00008a06 movs r0,#0x1
+  00008a08 bl 0x00037538
+  00008a0c adds r0,r7,#0x0
+  00008a0e pop {r4,r5,r6,r7}
+  00008a10 pop {r3}
+  00008a12 bx r3
+  00008a28 push {r4,r5,r6,r7,lr}   <== target
+  00008a2a adds r5,r0,#0x0
+  00008a2c movs r7,#0x80
+  00008a2e movs r1,#0x0
+  00008a30 movs r0,#0x1
+  00008a32 bl 0x00037530
+  00008a36 adds r4,r0,#0x0
+  00008a38 cmp r4,#0x0
+  00008a3a bne 0x00008a92
+  00008a3c ldr r0,[0x00008aa0]
+  00008a3e ldr r0,[r0,#0x0]
+  00008a40 movs r3,#0x1
+  00008a42 orrs r0,r3
+
+ROOT 00008AB0 exact=FUN_00008ab0@00008ab0 owner=FUN_00008ab0@00008ab0
+  00008a8a str r0,[r1,#0x0]
+  00008a8c movs r0,#0x1
+  00008a8e bl 0x00037538
+  00008a92 adds r0,r7,#0x0
+  00008a94 pop {r4,r5,r6,r7}
+  00008a96 pop {r3}
+  00008a98 bx r3
+  00008ab0 push {r3,r4,r5,r6,r7,lr}   <== target
+  00008ab2 adds r7,r0,#0x0
+  00008ab4 movs r4,#0x80
+  00008ab6 movs r1,#0x0
+  00008ab8 movs r0,#0x1
+  00008aba bl 0x00037530
+  00008abe str r0,[sp,#0x0]
+  00008ac0 ldr r0,[sp,#0x0]
+  00008ac2 cmp r0,#0x0
+  00008ac4 bne 0x00008b7a
+  00008ac6 ldr r0,[0x00008b88]
+  00008ac8 ldr r0,[r0,#0x0]
+  00008aca movs r3,#0x1
+
+ROOT 00008B9C exact=FUN_00008b9c@00008b9c owner=FUN_00008b9c@00008b9c
+  00008b72 str r0,[r1,#0x0]
+  00008b74 movs r0,#0x1
+  00008b76 bl 0x00037538
+  00008b7a adds r0,r4,#0x0
+  00008b7c pop {r3,r4,r5,r6,r7}
+  00008b7e pop {r3}
+  00008b80 bx r3
+  00008b9c push {r4,r5,r6,r7,lr}   <== target
+  00008b9e adds r7,r0,#0x0
+  00008ba0 movs r4,#0x80
+  00008ba2 movs r1,#0x0
+  00008ba4 movs r0,#0x1
+  00008ba6 bl 0x00037530
+  00008baa adds r5,r0,#0x0
+  00008bac cmp r5,#0x0
+  00008bae bne 0x00008c4a
+  00008bb0 ldr r0,[0x00008c58]
+  00008bb2 ldr r0,[r0,#0x0]
+  00008bb4 movs r3,#0x1
+  00008bb6 orrs r0,r3
+
+ROOT 00008168 exact=FUN_00008168@00008168 owner=FUN_00008168@00008168
+  00008156 movs r3,#0x30
+  00008158 bics r0,r3
+  0000815a movs r3,#0x10
+  0000815c orrs r0,r3
+  0000815e strb r0,[r1,#0x0]
+  00008160 lsls r0,r0,#0x1a
+  00008162 bx lr
+  00008168 sub sp,#0x4   <== target
+  0000816a ldr r1,[0x000081e8]
+  0000816c ldr r1,[r1,#0x10]
+  0000816e movs r3,#0x40
+  00008170 orrs r1,r3
+  00008172 ldr r2,[0x000081e8]
+  00008174 str r1,[r2,#0x10]
+  00008176 lsls r1,r1,#0x19
+  00008178 movs r1,#0x0
+  0000817a strb r1,[r2,#0x0]
+  0000817c strb r0,[r2,#0x8]
+  0000817e ldr r1,[sp,#0x0]
+  00008180 lsrs r1,r1,#0x2
+
+ROOT 000088F0 exact=FUN_000088f0@000088f0 owner=FUN_000088f0@000088f0
+  000088f0 push {r4,r5,r6,r7,lr}   <== target
+  000088f2 sub sp,#0x8
+  000088f4 adds r4,r0,#0x0
+  000088f6 adds r7,r1,#0x0
+  000088f8 add r3,sp,#0x4
+  000088fa strh r4,[r3,#0x0]
+  000088fc add r0,sp,#0x4
+  000088fe ldrb r0,[r0,#0x1]
+  00008900 lsls r0,r0,#0x1f
+  00008902 lsrs r0,r0,#0x1f
+  00008904 movs r3,#0xa8
+  00008906 orrs r0,r3
+  00008908 lsls r0,r0,#0x18
+  0000890a lsrs r0,r0,#0x18
+  0000890c str r0,[sp,#0x0]
+  0000890e ldr r0,[0x0000898c]
+  00008910 ldr r0,[r0,#0x10]
+  00008912 lsrs r0,r0,#0x8
+  00008914 bcc 0x00008918
+  00008916 b 0x0000890e
+
+ROOT 00008464 exact=FUN_00008464@00008464 owner=FUN_00008464@00008464
+  0000843c ldr r1,[0x00008454]
+  0000843e str r0,[r1,#0x0]
+  00008440 lsls r0,r0,#0x1e
+  00008442 adds r0,r7,#0x0
+  00008444 pop {r4,r5,r6,r7}
+  00008446 pop {r3}
+  00008448 bx r3
+  00008464 push {r0,r1,r2,r3,r4,r5,r6,r7,lr}   <== target
+  00008466 sub sp,#0x8
+  00008468 adds r7,r2,#0x0
+  0000846a movs r0,#0x0
+  0000846c add r3,sp,#0x4
+  0000846e strh r0,[r3,#0x0]
+  00008470 movs r0,#0x3
+  00008472 strb r0,[r3,#0x1]
+  00008474 subs r1,r0,#0x4
+  00008476 movs r0,#0x1
+  00008478 bl 0x00037530
+  0000847c str r0,[sp,#0x0]
+  0000847e ldr r0,[sp,#0x0]
+
+ROOT 00008658 exact=FUN_00008658@00008658 owner=FUN_00008658@00008658
+  0000863e str r0,[r1,#0x0]
+  00008640 movs r0,#0x1
+  00008642 bl 0x00037538
+  00008646 add sp,#0x18
+  00008648 pop {r4,r5,r6,r7}
+  0000864a pop {r3}
+  0000864c bx r3
+  00008658 push {r3,r4,r5,r6,r7,lr}   <== target
+  0000865a adds r4,r0,#0x0
+  0000865c adds r5,r2,#0x0
+  0000865e adds r6,r1,#0x0
+  00008660 movs r1,#0x0
+  00008662 mvns r1,r1
+  00008664 movs r0,#0x1
+  00008666 bl 0x00037530
+  0000866a str r0,[sp,#0x0]
+  0000866c ldr r0,[sp,#0x0]
+  0000866e cmp r0,#0x0
+  00008670 bne 0x000086b4
+  00008672 ldr r3,[0x000086c0]
+
+ROOT 000086D0 exact=FUN_000086d0@000086d0 owner=FUN_000086d0@000086d0
+  000086ae ldr r1,[0x000086c4]
+  000086b0 str r0,[r1,#0x0]
+  000086b2 lsls r0,r0,#0x1e
+  000086b4 adds r0,r7,#0x0
+  000086b6 pop {r3,r4,r5,r6,r7}
+  000086b8 pop {r3}
+  000086ba bx r3
+  000086d0 push {r0,r1,r2,r4,r5,r6,r7,lr}   <== target
+  000086d2 sub sp,#0x4
+  000086d4 adds r4,r0,#0x0
+  000086d6 movs r1,#0x0
+  000086d8 mvns r1,r1
+  000086da movs r0,#0x1
+  000086dc bl 0x00037530
+  000086e0 str r0,[sp,#0x0]
+  000086e2 ldr r0,[sp,#0x0]
+  000086e4 cmp r0,#0x0
+  000086e6 bne 0x000087ae
+  000086e8 ldr r3,[0x000087bc]
+  000086ea cmp r4,r3
+
+ROOT 00006B28 exact=FUN_00006b28@00006b28 owner=FUN_00006b28@00006b28
+  00006b28 stmdb sp!,{lr}   <== target
+  00006b2c ldr r0,[0x6f6c]
+  00006b30 ldrh r0,[r0,#0xa]
+  00006b34 cmp r0,#0x0
+  00006b38 beq 0x00006b78
+  00006b3c ldr r0,[0x6f6c]
+  00006b40 ldrh r0,[r0,#0x4]
+  00006b44 sub r0,r0,#0x1
+  00006b48 mov r0,r0, lsl #0x10
+  00006b4c mov r0,r0, lsr #0x10
+  00006b50 ldr r1,[0x6f6c]
+  00006b54 strh r0,[r1,#0x4]
+  00006b58 cmp r0,#0x0
+  00006b5c bne 0x00006b78
+  00006b60 mov r1,#0x0
+  00006b64 ldr r0,[0x6f6c]
+  00006b68 strh r1,[r0,#0xa]
+  00006b6c mov r1,#0x80
+  00006b70 mov r0,#0x1
+  00006b74 bl 0x00033fd4
+
+ROOT 00006FBC exact=FUN_00006fbc@00006fbc owner=FUN_00006fbc@00006fbc
+  00006fbc stmdb sp!,{lr}   <== target
+  00006fc0 ldr r0,[0x77c8]
+  00006fc4 ldrb r0,[r0,#0x0]
+  00006fc8 cmp r0,#0x0
+  00006fcc beq 0x00006ffc
+  00006fd0 mov r0,#0x1000
+  00006fd4 add r0,r0,#0x3100000
+  00006fd8 ldr r0,[r0,#0x50]
+  00006fdc tst r0,#0x4
+  00006fe0 bne 0x00006ffc
+  00006fe4 mov r0,#0x0
+  00006fe8 ldr r1,[0x77c8]
+  00006fec strb r0,[r1,#0x0]
+  00006ff0 mov r1,#0x100
+  00006ff4 mov r0,#0x8
+  00006ff8 bl 0x00033fd4
+  00006ffc ldr r0,[0x6fa8]
+  00007000 ldrh r0,[r0,#0x1c]
+  00007004 cmp r0,#0x0
+  00007008 beq 0x00007060
+
+===== CALLERS OF QUEUE WORKER / MMIO FUNCTIONS =====
+
+TARGET 00030C40 FUN_00030c40@00030c40
+  FROM 00006bac type=UNCONDITIONAL_CALL owner=FUN_00006b28@00006b28 instr=bl 0x00030c40
+    UPSTREAM 00003f34 type=DATA owner=FUN_000332d8@000332d8
+
+TARGET 00008378 FUN_00008378@00008378
+  FROM 00013972 type=UNCONDITIONAL_CALL owner=FUN_00013958@00013958 instr=bl 0x00008378
+  FROM 0002488a type=UNCONDITIONAL_CALL owner=FUN_00024600@00024600 instr=bl 0x00008378
+  FROM 00024892 type=UNCONDITIONAL_CALL owner=FUN_00024600@00024600 instr=bl 0x00008378
+  FROM 000248c8 type=UNCONDITIONAL_CALL owner=FUN_00024600@00024600 instr=bl 0x00008378
+  FROM 000248d0 type=UNCONDITIONAL_CALL owner=FUN_00024600@00024600 instr=bl 0x00008378
+    UPSTREAM 00024998 type=UNCONDITIONAL_CALL owner=FUN_0002497c@0002497c
+    UPSTREAM 000249a2 type=UNCONDITIONAL_CALL owner=FUN_0002497c@0002497c
+    UPSTREAM 000249ac type=UNCONDITIONAL_CALL owner=FUN_0002497c@0002497c
+    UPSTREAM 000249b6 type=UNCONDITIONAL_CALL owner=FUN_0002497c@0002497c
+    UPSTREAM 000249c0 type=UNCONDITIONAL_CALL owner=FUN_0002497c@0002497c
+
+TARGET 000083E8 FUN_000083e8@000083e8
+  FROM 000139d0 type=UNCONDITIONAL_CALL owner=FUN_0001399c@0001399c instr=bl 0x000083e8
+  FROM 00011c4c type=UNCONDITIONAL_CALL owner=<none> instr=bl 0x000083e8
+  FROM 0000f7a8 type=UNCONDITIONAL_CALL owner=FUN_0000f76c@0000f76c instr=bl 0x000083e8
+  FROM 0000f7ec type=UNCONDITIONAL_CALL owner=FUN_0000f76c@0000f76c instr=bl 0x000083e8
+  FROM 0000f83a type=UNCONDITIONAL_CALL owner=FUN_0000f76c@0000f76c instr=bl 0x000083e8
+  FROM 0000f84c type=UNCONDITIONAL_CALL owner=FUN_0000f76c@0000f76c instr=bl 0x000083e8
+  FROM 000107b4 type=UNCONDITIONAL_CALL owner=FUN_00010778@00010778 instr=bl 0x000083e8
+  FROM 0000e674 type=UNCONDITIONAL_CALL owner=<none> instr=bl 0x000083e8
+  FROM 0000e686 type=UNCONDITIONAL_CALL owner=<none> instr=bl 0x000083e8
+  FROM 00024766 type=UNCONDITIONAL_CALL owner=FUN_00024600@00024600 instr=bl 0x000083e8
+  FROM 00024776 type=UNCONDITIONAL_CALL owner=FUN_00024600@00024600 instr=bl 0x000083e8
+  FROM 000247aa type=UNCONDITIONAL_CALL owner=FUN_00024600@00024600 instr=bl 0x000083e8
+  FROM 000247cc type=UNCONDITIONAL_CALL owner=FUN_00024600@00024600 instr=bl 0x000083e8
+  FROM 00024810 type=UNCONDITIONAL_CALL owner=FUN_00024600@00024600 instr=bl 0x000083e8
+  FROM 00024820 type=UNCONDITIONAL_CALL owner=FUN_00024600@00024600 instr=bl 0x000083e8
+  FROM 00024854 type=UNCONDITIONAL_CALL owner=FUN_00024600@00024600 instr=bl 0x000083e8
+  FROM 00024878 type=UNCONDITIONAL_CALL owner=FUN_00024600@00024600 instr=bl 0x000083e8
+  FROM 000248ee type=UNCONDITIONAL_CALL owner=FUN_00024600@00024600 instr=bl 0x000083e8
+  FROM 00024910 type=UNCONDITIONAL_CALL owner=FUN_00024600@00024600 instr=bl 0x000083e8
+    UPSTREAM 00024998 type=UNCONDITIONAL_CALL owner=FUN_0002497c@0002497c
+    UPSTREAM 000249a2 type=UNCONDITIONAL_CALL owner=FUN_0002497c@0002497c
+    UPSTREAM 000249ac type=UNCONDITIONAL_CALL owner=FUN_0002497c@0002497c
+    UPSTREAM 000249b6 type=UNCONDITIONAL_CALL owner=FUN_0002497c@0002497c
+    UPSTREAM 000249c0 type=UNCONDITIONAL_CALL owner=FUN_0002497c@0002497c
+
+TARGET 0000899C FUN_0000899c@0000899c
+  FROM 00013a36 type=UNCONDITIONAL_CALL owner=<none> instr=bl 0x0000899c
+
+TARGET 00008A28 FUN_00008a28@00008a28
+  FROM 00013a5c type=UNCONDITIONAL_CALL owner=<none> instr=bl 0x00008a28
+
+TARGET 00008AB0 FUN_00008ab0@00008ab0
+  FROM 00013886 type=UNCONDITIONAL_CALL owner=FUN_00013880@00013880 instr=bl 0x00008ab0
+  FROM 000033aa type=UNCONDITIONAL_CALL owner=FUN_000033a4@000033a4 instr=bl 0x00008ab0
+    UPSTREAM 00000d22 type=UNCONDITIONAL_CALL owner=<none>
+
+TARGET 00008B9C FUN_00008b9c@00008b9c
+  FROM 0001393c type=UNCONDITIONAL_CALL owner=FUN_000138f8@000138f8 instr=bl 0x00008b9c
+
+TARGET 00008168 FUN_00008168@00008168
+  FROM 00037560 type=COMPUTED_CALL owner=thunk_FUN_00008168@0003755c instr=bx r12
+  FROM 00008b14 type=UNCONDITIONAL_CALL owner=FUN_00008ab0@00008ab0 instr=bl 0x00008168
+  FROM 00008c28 type=UNCONDITIONAL_CALL owner=FUN_00008b9c@00008b9c instr=bl 0x00008168
+  FROM 00008974 type=UNCONDITIONAL_CALL owner=FUN_000088f0@000088f0 instr=bl 0x00008168
+  FROM 000089e8 type=UNCONDITIONAL_CALL owner=FUN_0000899c@0000899c instr=bl 0x00008168
+  FROM 00008a72 type=UNCONDITIONAL_CALL owner=FUN_00008a28@00008a28 instr=bl 0x00008168
+    UPSTREAM 00030ce0 type=UNCONDITIONAL_CALL owner=FUN_00030c40@00030c40
+    UPSTREAM 00030e50 type=UNCONDITIONAL_CALL owner=FUN_00030c40@00030c40
+    UPSTREAM 00030f2c type=UNCONDITIONAL_CALL owner=FUN_00030c40@00030c40
+    UPSTREAM 00013886 type=UNCONDITIONAL_CALL owner=FUN_00013880@00013880
+    UPSTREAM 000033aa type=UNCONDITIONAL_CALL owner=FUN_000033a4@000033a4
+    UPSTREAM 0001393c type=UNCONDITIONAL_CALL owner=FUN_000138f8@000138f8
+    UPSTREAM 000083ac type=UNCONDITIONAL_CALL owner=FUN_00008378@00008378
+    UPSTREAM 00008760 type=UNCONDITIONAL_CALL owner=FUN_000086d0@000086d0
+    UPSTREAM 0000849a type=UNCONDITIONAL_CALL owner=FUN_00008464@00008464
+    UPSTREAM 00013a36 type=UNCONDITIONAL_CALL owner=<none>
+    UPSTREAM 00013a5c type=UNCONDITIONAL_CALL owner=<none>
+
+TARGET 000088F0 FUN_000088f0@000088f0
+  FROM 000083ac type=UNCONDITIONAL_CALL owner=FUN_00008378@00008378 instr=bl 0x000088f0
+  FROM 00008760 type=UNCONDITIONAL_CALL owner=FUN_000086d0@000086d0 instr=bl 0x000088f0
+  FROM 0000849a type=UNCONDITIONAL_CALL owner=FUN_00008464@00008464 instr=bl 0x000088f0
+    UPSTREAM 00013972 type=UNCONDITIONAL_CALL owner=FUN_00013958@00013958
+    UPSTREAM 0002488a type=UNCONDITIONAL_CALL owner=FUN_00024600@00024600
+    UPSTREAM 00024892 type=UNCONDITIONAL_CALL owner=FUN_00024600@00024600
+    UPSTREAM 000248c8 type=UNCONDITIONAL_CALL owner=FUN_00024600@00024600
+    UPSTREAM 000248d0 type=UNCONDITIONAL_CALL owner=FUN_00024600@00024600
+    UPSTREAM 00013afe type=UNCONDITIONAL_CALL owner=<none>
+    UPSTREAM 00013d24 type=UNCONDITIONAL_CALL owner=<none>
+    UPSTREAM 00013faa type=UNCONDITIONAL_CALL owner=<none>
+    UPSTREAM 00014248 type=UNCONDITIONAL_CALL owner=FUN_00014208@00014208
+    UPSTREAM 000035b0 type=UNCONDITIONAL_CALL owner=FUN_00003558@00003558
+    UPSTREAM 00003632 type=UNCONDITIONAL_CALL owner=FUN_00003558@00003558
+    UPSTREAM 0000ddae type=UNCONDITIONAL_CALL owner=FUN_0000dc68@0000dc68
+    UPSTREAM 0000df4a type=UNCONDITIONAL_CALL owner=FUN_0000dc68@0000dc68
+    UPSTREAM 00011e00 type=UNCONDITIONAL_CALL owner=FUN_00011dc8@00011dc8
+    UPSTREAM 00011e36 type=UNCONDITIONAL_CALL owner=FUN_00011dc8@00011dc8
+    UPSTREAM 000141c4 type=UNCONDITIONAL_CALL owner=FUN_000141b8@000141b8
+    UPSTREAM 00003664 type=UNCONDITIONAL_CALL owner=FUN_0000364c@0000364c
+    UPSTREAM 00003682 type=UNCONDITIONAL_CALL owner=FUN_0000364c@0000364c
+    UPSTREAM 00003a0a type=UNCONDITIONAL_CALL owner=FUN_000039fc@000039fc
+    UPSTREAM 00003a20 type=UNCONDITIONAL_CALL owner=FUN_000039fc@000039fc
+    UPSTREAM 0000f382 type=UNCONDITIONAL_CALL owner=FUN_0000f378@0000f378
+    UPSTREAM 0000e6c6 type=UNCONDITIONAL_CALL owner=FUN_0000e6bc@0000e6bc
+    UPSTREAM 0000e6ea type=UNCONDITIONAL_CALL owner=FUN_0000e6e0@0000e6e0
+    UPSTREAM 0000e70e type=UNCONDITIONAL_CALL owner=FUN_0000e704@0000e704
+    UPSTREAM 0000e732 type=UNCONDITIONAL_CALL owner=FUN_0000e728@0000e728
+    UPSTREAM 0000e756 type=UNCONDITIONAL_CALL owner=FUN_0000e74c@0000e74c
+    UPSTREAM 0000e77a type=UNCONDITIONAL_CALL owner=FUN_0000e770@0000e770
+
+TARGET 00008464 FUN_00008464@00008464
+  FROM 000141c4 type=UNCONDITIONAL_CALL owner=FUN_000141b8@000141b8 instr=bl 0x00008464
+  FROM 00003664 type=UNCONDITIONAL_CALL owner=FUN_0000364c@0000364c instr=bl 0x00008464
+  FROM 00003682 type=UNCONDITIONAL_CALL owner=FUN_0000364c@0000364c instr=bl 0x00008464
+  FROM 00003a0a type=UNCONDITIONAL_CALL owner=FUN_000039fc@000039fc instr=bl 0x00008464
+  FROM 00003a20 type=UNCONDITIONAL_CALL owner=FUN_000039fc@000039fc instr=bl 0x00008464
+  FROM 0000f382 type=UNCONDITIONAL_CALL owner=FUN_0000f378@0000f378 instr=bl 0x00008464
+  FROM 0000e6c6 type=UNCONDITIONAL_CALL owner=FUN_0000e6bc@0000e6bc instr=bl 0x00008464
+  FROM 0000e6ea type=UNCONDITIONAL_CALL owner=FUN_0000e6e0@0000e6e0 instr=bl 0x00008464
+  FROM 0000e70e type=UNCONDITIONAL_CALL owner=FUN_0000e704@0000e704 instr=bl 0x00008464
+  FROM 0000e732 type=UNCONDITIONAL_CALL owner=FUN_0000e728@0000e728 instr=bl 0x00008464
+  FROM 0000e756 type=UNCONDITIONAL_CALL owner=FUN_0000e74c@0000e74c instr=bl 0x00008464
+  FROM 0000e77a type=UNCONDITIONAL_CALL owner=FUN_0000e770@0000e770 instr=bl 0x00008464
+  FROM 0000e79e type=UNCONDITIONAL_CALL owner=FUN_0000e794@0000e794 instr=bl 0x00008464
+  FROM 0000e7c4 type=UNCONDITIONAL_CALL owner=FUN_0000e7b8@0000e7b8 instr=bl 0x00008464
+  FROM 0000e7e6 type=UNCONDITIONAL_CALL owner=FUN_0000e7dc@0000e7dc instr=bl 0x00008464
+  FROM 0000e80a type=UNCONDITIONAL_CALL owner=FUN_0000e800@0000e800 instr=bl 0x00008464
+    UPSTREAM 00003926 type=UNCONDITIONAL_CALL owner=FUN_00003924@00003924
+    UPSTREAM 0000dbda type=UNCONDITIONAL_CALL owner=FUN_0000dbbc@0000dbbc
+    UPSTREAM 0000dbe0 type=UNCONDITIONAL_CALL owner=FUN_0000dbbc@0000dbbc
+    UPSTREAM 0000dbe6 type=UNCONDITIONAL_CALL owner=FUN_0000dbbc@0000dbbc
+    UPSTREAM 0000dbec type=UNCONDITIONAL_CALL owner=FUN_0000dbbc@0000dbbc
+    UPSTREAM 0000dbf2 type=UNCONDITIONAL_CALL owner=FUN_0000dbbc@0000dbbc
+    UPSTREAM 0000dbf8 type=UNCONDITIONAL_CALL owner=FUN_0000dbbc@0000dbbc
+    UPSTREAM 0000dbfe type=UNCONDITIONAL_CALL owner=FUN_0000dbbc@0000dbbc
+    UPSTREAM 0000dc04 type=UNCONDITIONAL_CALL owner=FUN_0000dbbc@0000dbbc
+    UPSTREAM 0000dc0a type=UNCONDITIONAL_CALL owner=FUN_0000dbbc@0000dbbc
+    UPSTREAM 0000dc10 type=UNCONDITIONAL_CALL owner=FUN_0000dbbc@0000dbbc
+
+===== FOCUSED QUEUE / STORAGE MMIO LITERAL POOLS WITH CODE WINDOWS =====
+Read-only: value at ROM literal and nearby assembly at all direct xref uses (bounded 12).
+
+POOL 0003100C -> 02000034
+  USE 00030d60 READ owner=FUN_00030c40@00030c40
+  00030d54 mov r0,r1, lsl #0x19
+  00030d58 mov r4,#0x3100
+  00030d5c add r4,r4,#0x3000000
+  00030d60 ldr r0,[0x3100c]   <== target
+  00030d64 ldrb r0,[r0,#0x1]
+  00030d68 and r0,r0,#0x1
+  00030d6c orr r0,r0,#0xa4
+  00030d70 strb r0,[r4],#0x1
+  00030d74 ldr r0,[0x3100c]
+  00030d78 ldrb r0,[r0,#0x0]
+  00030d7c strb r0,[r4],#0x1
+  00030d80 add r4,r4,#0x1
+  USE 00030d74 READ owner=FUN_00030c40@00030c40
+  00030d68 and r0,r0,#0x1
+  00030d6c orr r0,r0,#0xa4
+  00030d70 strb r0,[r4],#0x1
+  00030d74 ldr r0,[0x3100c]   <== target
+  00030d78 ldrb r0,[r0,#0x0]
+  00030d7c strb r0,[r4],#0x1
+  00030d80 add r4,r4,#0x1
+  00030d84 add r4,r4,#0x1
+  00030d88 ldr r0,[0x31010]
+  00030d8c ldrb r0,[r0,#0x0]
+  00030d90 cmp r0,#0x8
+  00030d94 ble 0x00030db4
+  USE 00030e64 READ owner=FUN_00030c40@00030c40
+  00030e58 ldrb r0,[r0,#0x0]
+  00030e5c cmp r0,#0x0
+  00030e60 beq 0x00030e7c
+  00030e64 ldr r0,[0x3100c]   <== target
+  00030e68 ldrh r0,[r0,#0x0]
+  00030e6c add r0,r0,#0x8
+  00030e70 ldr r1,[0x3100c]
+  00030e74 strh r0,[r1,#0x0]
+  00030e78 b 0x00030e88
+  00030e7c mov r0,#0x3
+  00030e80 ldr r1,[0x31008]
+  00030e84 strb r0,[r1,#0x0]
+  USE 00030e70 READ owner=FUN_00030c40@00030c40
+  00030e64 ldr r0,[0x3100c]
+  00030e68 ldrh r0,[r0,#0x0]
+  00030e6c add r0,r0,#0x8
+  00030e70 ldr r1,[0x3100c]   <== target
+  00030e74 strh r0,[r1,#0x0]
+  00030e78 b 0x00030e88
+  00030e7c mov r0,#0x3
+  00030e80 ldr r1,[0x31008]
+  00030e84 strb r0,[r1,#0x0]
+  00030e88 ldr r0,[0x3101c]
+  00030e8c ldr r0,[r0,#0x0]
+  00030e90 tst r0,#0x4
+
+POOL 00031018 -> 0200002C
+  USE 00030e04 READ owner=FUN_00030c40@00030c40
+  00030df8 ldr r2,[0x31014]
+  00030dfc ldrb r1,[r2,#0x0]
+  00030e00 strb r0,[r2,#0x0]
+  00030e04 ldr r0,[0x31018]   <== target
+  00030e08 ldr r0,[r0,#0x0]
+  00030e0c ldrb r0,[r0,r1]
+  00030e10 strb r0,[r4],#0x1
+  00030e14 ldr r0,[0x31014]
+  00030e18 ldrb r0,[r0,#0x0]
+  00030e1c add r0,r0,#0x1
+  00030e20 ldr r2,[0x31014]
+  00030e24 ldrb r1,[r2,#0x0]
+  USE 00030e2c READ owner=FUN_00030c40@00030c40
+  00030e20 ldr r2,[0x31014]
+  00030e24 ldrb r1,[r2,#0x0]
+  00030e28 strb r0,[r2,#0x0]
+  00030e2c ldr r0,[0x31018]   <== target
+  00030e30 ldr r0,[r0,#0x0]
+  00030e34 ldrb r0,[r0,r1]
+  00030e38 strb r0,[r4],#0x1
+  00030e3c add r4,r4,#0x1
+  00030e40 add r4,r4,#0x1
+  00030e44 b 0x00030de0
+  00030e48 add r0,r5,#0x1
+  00030e4c and r0,r0,#0xff
+
+POOL 0003101C -> 02000028
+  USE 00030fc8 READ owner=FUN_00030c40@00030c40
+  00030fbc mov r0,#0x1
+  00030fc0 bl 0x000334e8
+  00030fc4 b 0x00030ffc
+  00030fc8 ldr r0,[0x3101c]   <== target
+  00030fcc ldr r0,[r0,#0x0]
+  00030fd0 tst r0,#0x1
+  00030fd4 bne 0x00030ff8
+  00030fd8 mov r0,#0x1000
+  00030fdc add r0,r0,#0x3100000
+  00030fe0 ldr r0,[r0,#0x60]
+  00030fe4 orr r1,r0,#0x10
+  00030fe8 mov r0,#0x1000
+  USE 00030f60 READ owner=FUN_00030c40@00030c40
+  00030f54 mov r1,#0x0
+  00030f58 ldr r0,[0x31008]
+  00030f5c strb r1,[r0,#0x0]
+  00030f60 ldr r0,[0x3101c]   <== target
+  00030f64 ldr r0,[r0,#0x0]
+  00030f68 bic r1,r0,#0x4
+  00030f6c ldr r0,[0x3101c]
+  00030f70 str r1,[r0,#0x0]
+  00030f74 mov r0,r1, lsl #0x1d
+  00030f78 ldr r0,[0x3101c]
+  00030f7c ldr r0,[r0,#0x0]
+  00030f80 bic r0,r0,#0x2
+  USE 00030f6c READ owner=FUN_00030c40@00030c40
+  00030f60 ldr r0,[0x3101c]
+  00030f64 ldr r0,[r0,#0x0]
+  00030f68 bic r1,r0,#0x4
+  00030f6c ldr r0,[0x3101c]   <== target
+  00030f70 str r1,[r0,#0x0]
+  00030f74 mov r0,r1, lsl #0x1d
+  00030f78 ldr r0,[0x3101c]
+  00030f7c ldr r0,[r0,#0x0]
+  00030f80 bic r0,r0,#0x2
+  00030f84 ldr r1,[0x3101c]
+  00030f88 str r0,[r1,#0x0]
+  00030f8c mov r0,r0, lsl #0x1e
+  USE 00030f78 READ owner=FUN_00030c40@00030c40
+  00030f6c ldr r0,[0x3101c]
+  00030f70 str r1,[r0,#0x0]
+  00030f74 mov r0,r1, lsl #0x1d
+  00030f78 ldr r0,[0x3101c]   <== target
+  00030f7c ldr r0,[r0,#0x0]
+  00030f80 bic r0,r0,#0x2
+  00030f84 ldr r1,[0x3101c]
+  00030f88 str r0,[r1,#0x0]
+  00030f8c mov r0,r0, lsl #0x1e
+  00030f90 ldr r0,[0x3101c]
+  00030f94 ldr r0,[r0,#0x0]
+  00030f98 bic r1,r0,#0x1
+  USE 00030f84 READ owner=FUN_00030c40@00030c40
+  00030f78 ldr r0,[0x3101c]
+  00030f7c ldr r0,[r0,#0x0]
+  00030f80 bic r0,r0,#0x2
+  00030f84 ldr r1,[0x3101c]   <== target
+  00030f88 str r0,[r1,#0x0]
+  00030f8c mov r0,r0, lsl #0x1e
+  00030f90 ldr r0,[0x3101c]
+  00030f94 ldr r0,[r0,#0x0]
+  00030f98 bic r1,r0,#0x1
+  00030f9c ldr r0,[0x3101c]
+  00030fa0 str r1,[r0,#0x0]
+  00030fa4 cpy r0,sp
+  USE 00030f90 READ owner=FUN_00030c40@00030c40
+  00030f84 ldr r1,[0x3101c]
+  00030f88 str r0,[r1,#0x0]
+  00030f8c mov r0,r0, lsl #0x1e
+  00030f90 ldr r0,[0x3101c]   <== target
+  00030f94 ldr r0,[r0,#0x0]
+  00030f98 bic r1,r0,#0x1
+  00030f9c ldr r0,[0x3101c]
+  00030fa0 str r1,[r0,#0x0]
+  00030fa4 cpy r0,sp
+  00030fa8 mov r1,#0x1
+  00030fac bl 0x00035284
+  00030fb0 ldr r0,[sp,#0x4]
+  USE 00030f9c READ owner=FUN_00030c40@00030c40
+  00030f90 ldr r0,[0x3101c]
+  00030f94 ldr r0,[r0,#0x0]
+  00030f98 bic r1,r0,#0x1
+  00030f9c ldr r0,[0x3101c]   <== target
+  00030fa0 str r1,[r0,#0x0]
+  00030fa4 cpy r0,sp
+  00030fa8 mov r1,#0x1
+  00030fac bl 0x00035284
+  00030fb0 ldr r0,[sp,#0x4]
+  00030fb4 cmp r0,#0x0
+  00030fb8 bne 0x00030fc4
+  00030fbc mov r0,#0x1
+  USE 00030e88 READ owner=FUN_00030c40@00030c40
+  00030e7c mov r0,#0x3
+  00030e80 ldr r1,[0x31008]
+  00030e84 strb r0,[r1,#0x0]
+  00030e88 ldr r0,[0x3101c]   <== target
+  00030e8c ldr r0,[r0,#0x0]
+  00030e90 tst r0,#0x4
+  00030e94 beq 0x00030ea4
+  00030e98 mov r0,#0x0
+  00030e9c ldr r1,[0x31014]
+  00030ea0 strb r0,[r1,#0x0]
+  00030ea4 b 0x00030ffc
+  00030ea8 mov r0,#0x3000
+
+POOL 000083E0 -> 02000028
+  USE 0000839a READ owner=FUN_00008378@00008378
+  00008394 ble 0x0000839a
+  00008396 movs r7,#0x4
+  00008398 b 0x000083c8
+  0000839a ldr r0,[0x000083e0]   <== target
+  0000839c ldr r0,[r0,#0x0]
+  0000839e movs r3,#0x1
+  000083a0 orrs r0,r3
+  000083a2 ldr r1,[0x000083e0]
+  000083a4 str r0,[r1,#0x0]
+  000083a6 movs r7,#0x0
+  000083a8 movs r1,#0x2
+  000083aa adds r0,r5,#0x0
+  USE 000083a2 READ owner=FUN_00008378@00008378
+  0000839c ldr r0,[r0,#0x0]
+  0000839e movs r3,#0x1
+  000083a0 orrs r0,r3
+  000083a2 ldr r1,[0x000083e0]   <== target
+  000083a4 str r0,[r1,#0x0]
+  000083a6 movs r7,#0x0
+  000083a8 movs r1,#0x2
+  000083aa adds r0,r5,#0x0
+  000083ac bl 0x000088f0
+  000083b0 ldr r6,[0x000083e4]
+  000083b2 ldrb r0,[r6,#0x0]
+  000083b4 strb r0,[r4,#0x0]
+  USE 000083bc READ owner=FUN_00008378@00008378
+  000083b6 adds r6,#0x1
+  000083b8 ldrb r0,[r6,#0x0]
+  000083ba strb r0,[r4,#0x1]
+  000083bc ldr r0,[0x000083e0]   <== target
+  000083be ldr r0,[r0,#0x0]
+  000083c0 lsrs r0,r0,#0x1
+  000083c2 lsls r0,r0,#0x1
+  000083c4 ldr r1,[0x000083e0]
+  000083c6 str r0,[r1,#0x0]
+  000083c8 movs r0,#0x1
+  000083ca bl 0x00037538
+  000083ce adds r0,r7,#0x0
+  USE 000083c4 READ owner=FUN_00008378@00008378
+  000083be ldr r0,[r0,#0x0]
+  000083c0 lsrs r0,r0,#0x1
+  000083c2 lsls r0,r0,#0x1
+  000083c4 ldr r1,[0x000083e0]   <== target
+  000083c6 str r0,[r1,#0x0]
+  000083c8 movs r0,#0x1
+  000083ca bl 0x00037538
+  000083ce adds r0,r7,#0x0
+  000083d0 pop {r3,r4,r5,r6,r7}
+  000083d2 pop {r3}
+  000083d4 bx r3
+  000083e8 push {r4,r5,r6,r7,lr}
+
+POOL 000083E4 -> 03003104
+  USE 000083b0 READ owner=FUN_00008378@00008378
+  000083a8 movs r1,#0x2
+  000083aa adds r0,r5,#0x0
+  000083ac bl 0x000088f0
+  000083b0 ldr r6,[0x000083e4]   <== target
+  000083b2 ldrb r0,[r6,#0x0]
+  000083b4 strb r0,[r4,#0x0]
+  000083b6 adds r6,#0x1
+  000083b8 ldrb r0,[r6,#0x0]
+  000083ba strb r0,[r4,#0x1]
+  000083bc ldr r0,[0x000083e0]
+  000083be ldr r0,[r0,#0x0]
+  000083c0 lsrs r0,r0,#0x1
+
+POOL 00008454 -> 02000028
+  USE 0000840e READ owner=FUN_000083e8@000083e8
+  00008406 movs r0,#0x1
+  00008408 bl 0x00037538
+  0000840c b 0x00008442
+  0000840e ldr r0,[0x00008454]   <== target
+  00008410 ldr r0,[r0,#0x0]
+  00008412 movs r3,#0x1
+  00008414 orrs r0,r3
+  00008416 ldr r1,[0x00008454]
+  00008418 str r0,[r1,#0x0]
+  0000841a movs r7,#0x0
+  0000841c movs r0,#0x1
+  0000841e ldr r1,[0x00008458]
+  USE 00008416 READ owner=FUN_000083e8@000083e8
+  00008410 ldr r0,[r0,#0x0]
+  00008412 movs r3,#0x1
+  00008414 orrs r0,r3
+  00008416 ldr r1,[0x00008454]   <== target
+  00008418 str r0,[r1,#0x0]
+  0000841a movs r7,#0x0
+  0000841c movs r0,#0x1
+  0000841e ldr r1,[0x00008458]
+  00008420 strb r0,[r1,#0x6]
+  00008422 movs r0,#0x0
+  00008424 strb r0,[r1,#0x4]
+  00008426 movs r0,#0x1
+  USE 00008434 READ owner=FUN_000083e8@000083e8
+  0000842e ldr r0,[0x00008460]
+  00008430 str r0,[r1,#0x0]
+  00008432 strh r6,[r0,#0x0]
+  00008434 ldr r0,[0x00008454]   <== target
+  00008436 ldr r0,[r0,#0x0]
+  00008438 movs r3,#0x2
+  0000843a orrs r0,r3
+  0000843c ldr r1,[0x00008454]
+  0000843e str r0,[r1,#0x0]
+  00008440 lsls r0,r0,#0x1e
+  00008442 adds r0,r7,#0x0
+  00008444 pop {r4,r5,r6,r7}
+  USE 0000843c READ owner=FUN_000083e8@000083e8
+  00008436 ldr r0,[r0,#0x0]
+  00008438 movs r3,#0x2
+  0000843a orrs r0,r3
+  0000843c ldr r1,[0x00008454]   <== target
+  0000843e str r0,[r1,#0x0]
+  00008440 lsls r0,r0,#0x1e
+  00008442 adds r0,r7,#0x0
+  00008444 pop {r4,r5,r6,r7}
+  00008446 pop {r3}
+  00008448 bx r3
+  00008464 push {r0,r1,r2,r3,r4,r5,r6,r7,lr}
+  00008466 sub sp,#0x8
+
+POOL 00008458 -> 0200002C
+  USE 0000841e READ owner=FUN_000083e8@000083e8
+  00008418 str r0,[r1,#0x0]
+  0000841a movs r7,#0x0
+  0000841c movs r0,#0x1
+  0000841e ldr r1,[0x00008458]   <== target
+  00008420 strb r0,[r1,#0x6]
+  00008422 movs r0,#0x0
+  00008424 strb r0,[r1,#0x4]
+  00008426 movs r0,#0x1
+  00008428 strb r0,[r1,#0x5]
+  0000842a ldr r0,[0x0000845c]
+  0000842c strh r5,[r0,#0x0]
+  0000842e ldr r0,[0x00008460]
+
+POOL 0000845C -> 02000034
+  USE 0000842a READ owner=FUN_000083e8@000083e8
+  00008424 strb r0,[r1,#0x4]
+  00008426 movs r0,#0x1
+  00008428 strb r0,[r1,#0x5]
+  0000842a ldr r0,[0x0000845c]   <== target
+  0000842c strh r5,[r0,#0x0]
+  0000842e ldr r0,[0x00008460]
+  00008430 str r0,[r1,#0x0]
+  00008432 strh r6,[r0,#0x0]
+  00008434 ldr r0,[0x00008454]
+  00008436 ldr r0,[r0,#0x0]
+  00008438 movs r3,#0x2
+  0000843a orrs r0,r3
+
+POOL 00008650 -> 02000028
+  USE 00008484 READ owner=FUN_00008464@00008464
+  0000847e ldr r0,[sp,#0x0]
+  00008480 cmp r0,#0x0
+  00008482 bne 0x0000855e
+  00008484 ldr r0,[0x00008650]   <== target
+  00008486 ldr r0,[r0,#0x0]
+  00008488 movs r3,#0x1
+  0000848a orrs r0,r3
+  0000848c ldr r1,[0x00008650]
+  0000848e str r0,[r1,#0x0]
+  00008490 ldr r0,[sp,#0x4]
+  00008492 lsrs r0,r0,#0x1
+  00008494 bcs 0x00008560
+  USE 0000848c READ owner=FUN_00008464@00008464
+  00008486 ldr r0,[r0,#0x0]
+  00008488 movs r3,#0x1
+  0000848a orrs r0,r3
+  0000848c ldr r1,[0x00008650]   <== target
+  0000848e str r0,[r1,#0x0]
+  00008490 ldr r0,[sp,#0x4]
+  00008492 lsrs r0,r0,#0x1
+  00008494 bcs 0x00008560
+  00008496 ldr r0,[sp,#0x8]
+  00008498 ldr r1,[sp,#0xc]
+  0000849a bl 0x000088f0
+  0000849e ldr r4,[0x00008654]
+  USE 00008634 READ owner=FUN_00008464@00008464
+  0000862e orrs r0,r3
+  00008630 str r0,[sp,#0x4]
+  00008632 b 0x00008490
+  00008634 ldr r0,[0x00008650]   <== target
+  00008636 ldr r0,[r0,#0x0]
+  00008638 lsrs r0,r0,#0x1
+  0000863a lsls r0,r0,#0x1
+  0000863c ldr r1,[0x00008650]
+  0000863e str r0,[r1,#0x0]
+  00008640 movs r0,#0x1
+  00008642 bl 0x00037538
+  00008646 add sp,#0x18
+  USE 0000863c READ owner=FUN_00008464@00008464
+  00008636 ldr r0,[r0,#0x0]
+  00008638 lsrs r0,r0,#0x1
+  0000863a lsls r0,r0,#0x1
+  0000863c ldr r1,[0x00008650]   <== target
+  0000863e str r0,[r1,#0x0]
+  00008640 movs r0,#0x1
+  00008642 bl 0x00037538
+  00008646 add sp,#0x18
+  00008648 pop {r4,r5,r6,r7}
+  0000864a pop {r3}
+  0000864c bx r3
+  00008658 push {r3,r4,r5,r6,r7,lr}
+
+POOL 00008654 -> 03003104
+  USE 0000849e READ owner=FUN_00008464@00008464
+  00008496 ldr r0,[sp,#0x8]
+  00008498 ldr r1,[sp,#0xc]
+  0000849a bl 0x000088f0
+  0000849e ldr r4,[0x00008654]   <== target
+  000084a0 movs r3,#0x2
+  000084a2 ldr r0,[sp,#0x4]
+  000084a4 bics r0,r3
+  000084a6 str r0,[sp,#0x4]
+  000084a8 lsls r0,r0,#0x1e
+  000084aa ldr r3,[sp,#0x14]
+  000084ac cmp r3,#0x0
+  000084ae bne 0x0000851a
+
+POOL 000087CC -> 03003104
+  USE 00008764 READ owner=FUN_000086d0@000086d0
+  0000875c ldr r1,[sp,#0x8]
+  0000875e adds r0,r4,#0x0
+  00008760 bl 0x000088f0
+  00008764 ldr r5,[0x000087cc]   <== target
+  00008766 movs r6,#0x0
+  00008768 ldr r1,[sp,#0x8]
+  0000876a cmp r6,r1
+  0000876c blt 0x00008774
+  0000876e b 0x0000879c
+  00008770 adds r6,#0x2
+  00008772 b 0x00008768
+  00008774 ldr r2,[sp,#0xc]
+
+POOL 0000898C -> 03003000
+  USE 0000890e READ owner=FUN_000088f0@000088f0
+  00008908 lsls r0,r0,#0x18
+  0000890a lsrs r0,r0,#0x18
+  0000890c str r0,[sp,#0x0]
+  0000890e ldr r0,[0x0000898c]   <== target
+  00008910 ldr r0,[r0,#0x10]
+  00008912 lsrs r0,r0,#0x8
+  00008914 bcc 0x00008918
+  00008916 b 0x0000890e
+  00008918 ldr r0,[0x00008990]
+  0000891a ldr r0,[r0,#0x0]
+  0000891c lsrs r0,r0,#0x7
+  0000891e bcs 0x00008922
+  USE 00008930 READ owner=FUN_000088f0@000088f0
+  0000892a ldr r1,[0x00008994]
+  0000892c str r0,[r1,#0x20]
+  0000892e lsls r0,r0,#0x1b
+  00008930 ldr r0,[0x0000898c]   <== target
+  00008932 ldr r0,[r0,#0x10]
+  00008934 movs r3,#0x40
+  00008936 orrs r0,r3
+  00008938 ldr r1,[0x0000898c]
+  0000893a str r0,[r1,#0x10]
+  0000893c lsls r0,r0,#0x19
+  0000893e ldr r5,[0x00008998]
+  00008940 ldr r0,[sp,#0x0]
+  USE 00008938 READ owner=FUN_000088f0@000088f0
+  00008932 ldr r0,[r0,#0x10]
+  00008934 movs r3,#0x40
+  00008936 orrs r0,r3
+  00008938 ldr r1,[0x0000898c]   <== target
+  0000893a str r0,[r1,#0x10]
+  0000893c lsls r0,r0,#0x19
+  0000893e ldr r5,[0x00008998]
+  00008940 ldr r0,[sp,#0x0]
+  00008942 strb r0,[r5,#0x0]
+  00008944 adds r5,#0x1
+  00008946 add r0,sp,#0x4
+  00008948 ldrb r0,[r0,#0x0]
+  USE 00008978 READ owner=FUN_000088f0@000088f0
+  00008970 b 0x0000895a
+  00008972 adds r0,r7,#0x1
+  00008974 bl 0x00008168
+  00008978 ldr r0,[0x0000898c]   <== target
+  0000897a ldr r0,[r0,#0x10]
+  0000897c lsrs r0,r0,#0x8
+  0000897e bcc 0x00008982
+  00008980 b 0x00008978
+  00008982 add sp,#0x8
+  00008984 pop {r4,r5,r6,r7}
+  00008986 pop {r3}
+  00008988 bx r3
+
+POOL 00008990 -> 03101080
+  USE 00008918 READ owner=FUN_000088f0@000088f0
+  00008912 lsrs r0,r0,#0x8
+  00008914 bcc 0x00008918
+  00008916 b 0x0000890e
+  00008918 ldr r0,[0x00008990]   <== target
+  0000891a ldr r0,[r0,#0x0]
+  0000891c lsrs r0,r0,#0x7
+  0000891e bcs 0x00008922
+  00008920 b 0x00008918
+  00008922 ldr r0,[0x00008994]
+  00008924 ldr r0,[r0,#0x20]
+  00008926 movs r3,#0x10
+  00008928 bics r0,r3
+
+POOL 00008994 -> 03101040
+  USE 00008922 READ owner=FUN_000088f0@000088f0
+  0000891c lsrs r0,r0,#0x7
+  0000891e bcs 0x00008922
+  00008920 b 0x00008918
+  00008922 ldr r0,[0x00008994]   <== target
+  00008924 ldr r0,[r0,#0x20]
+  00008926 movs r3,#0x10
+  00008928 bics r0,r3
+  0000892a ldr r1,[0x00008994]
+  0000892c str r0,[r1,#0x20]
+  0000892e lsls r0,r0,#0x1b
+  00008930 ldr r0,[0x0000898c]
+  00008932 ldr r0,[r0,#0x10]
+  USE 0000892a READ owner=FUN_000088f0@000088f0
+  00008924 ldr r0,[r0,#0x20]
+  00008926 movs r3,#0x10
+  00008928 bics r0,r3
+  0000892a ldr r1,[0x00008994]   <== target
+  0000892c str r0,[r1,#0x20]
+  0000892e lsls r0,r0,#0x1b
+  00008930 ldr r0,[0x0000898c]
+  00008932 ldr r0,[r0,#0x10]
+  00008934 movs r3,#0x40
+  00008936 orrs r0,r3
+  00008938 ldr r1,[0x0000898c]
+  0000893a str r0,[r1,#0x10]
+
+POOL 00008998 -> 03003100
+  USE 0000893e READ owner=FUN_000088f0@000088f0
+  00008938 ldr r1,[0x0000898c]
+  0000893a str r0,[r1,#0x10]
+  0000893c lsls r0,r0,#0x19
+  0000893e ldr r5,[0x00008998]   <== target
+  00008940 ldr r0,[sp,#0x0]
+  00008942 strb r0,[r5,#0x0]
+  00008944 adds r5,#0x1
+  00008946 add r0,sp,#0x4
+  00008948 ldrb r0,[r0,#0x0]
+  0000894a strb r0,[r5,#0x0]
+  0000894c adds r5,#0x1
+  0000894e adds r5,#0x1
+
+POOL 00008A18 -> 02000028
+  USE 000089b0 READ owner=FUN_0000899c@0000899c
+  000089aa adds r4,r0,#0x0
+  000089ac cmp r4,#0x0
+  000089ae bne 0x00008a0c
+  000089b0 ldr r0,[0x00008a18]   <== target
+  000089b2 ldr r0,[r0,#0x0]
