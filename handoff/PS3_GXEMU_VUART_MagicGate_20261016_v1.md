@@ -44,3 +44,17 @@ For `0x0024FD08`, `0x0025030C`, and `0x00250978`, the old script refused a broad
 4. Cross-correlate verified packet evidence against PS2-side `SECRMAN`/`DECKARD` work and PlayOnline/DNAS observations, keeping transport states distinct from MechaCon commands.
 
 **Verification:** The recovery log was user-provided; the new audit script is committed but has not yet been executed in Ghidra. No signatures or datatype layouts were forced from speculation.
+
+
+## Confirmed subsequent Ghidra run (user output, 2026-10-16)
+Both committed audit scripts completed:
+- `AuditPs3GxemuVuartTransferPhases_20261016_v1.java`: named and commented `TransferWriteChunk16` at `0x0024FD08`, `TransferReadChunk16` at `0x0025030C`, and `AdvanceTransferSegment` at `0x00250978`; signatures preserved.
+- `DefinePs3GxemuVuartTransferCursor_20261016_v1.java`: created `/PS3/GXEMU/GxemuVuartTransferCursor`, 0x28 bytes; runtime pointer slot `0x00677768` resolves to `0x02BBA8A8`, typed `GxemuVuartTransferCursor`, labeled `gVuartTransferCursor`.
+- All observed `r2` writes in these three functions are ELFv1 descriptor-call sequences with matching `std r2,0x28(r1)` save and `ld r2,0x28(r1)` restore around `bctrl`. At `0x0024FD08`, this occurs twice. Thus the presence of an `r2` write is not evidence of permanent TOC corruption. It remains unsafe to assign a single TOC context to the entire function.
+- The three refused OPD entries each begin with an ordinary load, followed by `mfspr r0,LR` at entry+4 and `stdu r1` at entry+8: `0x0025075C/+8`, `0x0025085C/+8`, `0x00250C84/+8`. No foreign internal flow or outgoing jump was reported. Two returns occur in the first region. These are ordinary *candidate* delayed prologues, not yet independently flow-verified function objects.
+- UART dispatch calls remain `0x00251044 -> 0x000901FC` (`SendVirtualUartVariablePacketAlternate`) and `0x0025106C -> 0x0008FD48` (`SendVirtualUartVariablePacket`). No call from the inspected window to `0x0008FF54` was reported.
+
+## New guarded successor
+`ghidra_scripts/RecoverPs3GxemuDelayedPrologueFunctions_20261016_v1.java` (commit `5876d10ebcd862e0600aa703dfa17147c68fdc24`) performs descriptor, prologue-offset, branch/ref, instruction ownership and whole-body reachability checks before creating any of the three refused functions. It does **not** force entry+8 into a separate function, modify TOC context, or guess signatures/names; it prints full decompilations where possible. **Not yet run.** Run on the same saved `ps2_gxemu` program and return all `REACHABILITY`/`UNREACHABLE`/`DECOMP` output. If a region contains unreachable code, leave it unpromoted pending more targeted inspection.
+
+Parallel Dragon MechaCon 6.12 analysis is separately completed in `Masamune3210/ps2mgdecomp` master (`18bb0407` checkpoint). That repository explicitly has zero hardware cipher vectors and does not establish pre-Dragon 3.06 equivalence. Do not conflate GXEMU UART dispatch states with Dragon S-command states.
