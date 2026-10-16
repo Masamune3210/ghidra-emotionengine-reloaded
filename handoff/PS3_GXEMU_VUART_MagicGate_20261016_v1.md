@@ -33,8 +33,12 @@ For `0x0024FD08`, `0x0025030C`, and `0x00250978`, the old script refused a broad
 - Prints internal-prologue locations and references for each refused region.
 - Prints each `r2` writer, surrounding disassembly, and calls/xrefs to known UART transfer functions for TOC and control-flow assessment.
 
+
+## Additional guarded cursor datatype pass
+`ghidra_scripts/DefinePs3GxemuVuartTransferCursor_20261016_v1.java` was committed after the audit. It verifies all three recovered function boundaries and OPDs before defining `GxemuVuartTransferCursor` (0x28 bytes): `0x00` uint64 `byteOffset`, `0x08` uint64 `byteLimit`, `0x10` uint64 `currentSegmentOrdinal`, `0x18` uint64 `nextSegmentOrdinal`, `0x20` uint64 `segmentDescriptorAddress`. These fields are based on observed big-endian reads/writes in the 16-byte transfer and segment-advance functions, not inferred MagicGate semantics. It conditionally types and labels the cursor target read from TOC slot `0x00677768` only if the target is mapped and writable, with existing defined types preserved. Its runtime pointer, descriptor format and field usage remain subject to the upcoming Ghidra execution output. **This script is committed, not yet run or compiled in the user's Ghidra environment.** Run it after the transfer-phase audit and return its printed output.
+
 ## Next expected step
-1. Run `AuditPs3GxemuVuartTransferPhases_20261016_v1.java` in the existing `ps2_gxemu` Ghidra program after pulling `testing`.
+1. Run `AuditPs3GxemuVuartTransferPhases_20261016_v1.java` followed by `DefinePs3GxemuVuartTransferCursor_20261016_v1.java` in the existing `ps2_gxemu` Ghidra program after pulling `testing`.
 2. Use its `INTERNAL_PROLOGUE`, `FOREIGN_INTERNAL_FLOW`, `R2_WRITE`, and window output to determine whether the three refused entries can be safely split and whether any scoped `r2` context can be restored.
 3. Trace caller/callee relationships from chunk transfer callbacks into actual VUART port 10 packet construction and receipt; obtain packet IDs and fields from direct dataflow, not MagicGate guesses.
 4. Cross-correlate verified packet evidence against PS2-side `SECRMAN`/`DECKARD` work and PlayOnline/DNAS observations, keeping transport states distinct from MechaCon commands.
