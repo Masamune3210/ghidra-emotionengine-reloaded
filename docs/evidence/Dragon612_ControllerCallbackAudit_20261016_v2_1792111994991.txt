@@ -1,0 +1,39 @@
+Dragon 6.12, ROM SHA256=18371ba394e6339d861cfe19db7db7c9e44c8067114888421ee4a35feaaeba1b
+Verified 18-entry Thumb indirect callback table 0x38680-0x386C7
+Caller 0x29AF2 -> selector dispatcher 0x2A604; 0x2A60E loads R7; 0x3585E BX R7
+Selector RAM=0x02000488; substate RAM=0x02000489
+slot=00 raw=0002A66D thumb_entry=0002A66C function=<undefined>
+slot=01 raw=0002A66F thumb_entry=0002A66E function=FUN_0002a66e@0002a66e
+slot=02 raw=0002A9D5 thumb_entry=0002A9D4 function=FUN_0002a9d4@0002a9d4
+slot=03 raw=0002AA9D thumb_entry=0002AA9C function=FUN_0002aa9c@0002aa9c
+slot=04 raw=0002AB65 thumb_entry=0002AB64 function=<undefined>
+slot=05 raw=0002AFC9 thumb_entry=0002AFC8 function=DispatchState70To73@0002afc8
+slot=06 raw=0002B071 thumb_entry=0002B070 function=DispatchState80To83@0002b070
+slot=07 raw=0002B119 thumb_entry=0002B118 function=FUN_0002b118@0002b118
+slot=08 raw=0002B205 thumb_entry=0002B204 function=FUN_0002b204@0002b204
+slot=09 raw=0002B2AD thumb_entry=0002B2AC function=FUN_0002b2ac@0002b2ac
+slot=10 raw=0002A66D thumb_entry=0002A66C function=<undefined>
+slot=11 raw=0002B43D thumb_entry=0002B43C function=FUN_0002b43c@0002b43c
+slot=12 raw=0002B491 thumb_entry=0002B490 function=<undefined>
+slot=13 raw=0002B841 thumb_entry=0002B840 function=<undefined>
+slot=14 raw=0002B843 thumb_entry=0002B842 function=FUN_0002b842@0002b842
+slot=15 raw=0002B9E9 thumb_entry=0002B9E8 function=FUN_0002b9e8@0002b9e8
+slot=16 raw=0002BA3D thumb_entry=0002BA3C function=FUN_0002ba3c@0002ba3c
+slot=17 raw=0002B2AD thumb_entry=0002B2AC function=FUN_0002b2ac@0002b2ac
+CALLEE XREFS:
+target 0002a604
+  00029af2 UNCONDITIONAL_CALL
+target 0002afc8
+  00038694 DATA
+target 0002b070
+  00038698 DATA
+target 00015dd0
+  000151c2 UNCONDITIONAL_CALL
+Controller MMIO evidence (ROM literal, value):
+  0002baf8 -> 036000a0
+  0002bc74 -> 036000a0
+  00029e30 -> 03005000
+  00029e34 -> 03808000
+RAM addresses: selector 02000488, substate 02000489, transfer 0200048c, pending 02000496
+No authentication SCMD or cryptographic handler identity proven.
+Metadata: functionRenames=5 labels=22 comments=32 references=20 typedTables=0 preserved=1
