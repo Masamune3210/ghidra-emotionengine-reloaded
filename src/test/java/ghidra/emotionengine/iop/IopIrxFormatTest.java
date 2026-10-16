@@ -83,6 +83,46 @@ public class IopIrxFormatTest {
     }
 
     @Test
+    public void relocatedZeroFirstExportRequiresExplicitEvidence() {
+        byte[] b = new byte[64];
+        word(b, 0, IopIrxFormat.EXPORT_MAGIC);
+        b[8] = 1; b[9] = 1;
+        System.arraycopy("loadcore".getBytes(), 0, b, 12, 8);
+        // Ordinal zero points to module image offset 0. In the source IRX
+        // this cell has an R_MIPS_32 relocation; the loader verifies it.
+        word(b, 20, 0);
+        word(b, 24, 0x5dc);
+        word(b, 28, 0x1bdc);
+        word(b, 32, 0);
+
+        assertNull("Without relocation evidence, zero remains a terminator",
+            IopIrxFormat.readLibrary(b, 0));
+        IopIrxFormat.Library exp = IopIrxFormat.readLibrary(b, 0, true);
+        assertNotNull(exp);
+        assertFalse(exp.imported);
+        assertEquals("loadcore", exp.name);
+        assertArrayEquals(new int[]{0, 0x5dc, 0x1bdc}, exp.values);
+        assertEquals(36, exp.byteLength);
+
+        // A zero followed by another zero is not a valid export table.
+        word(b, 24, 0);
+        assertNull(IopIrxFormat.readLibrary(b, 0, true));
+        // Unaligned second pointer is not a valid MIPS instruction entry.
+        word(b, 24, 0x5dd);
+        assertNull(IopIrxFormat.readLibrary(b, 0, true));
+    }
+
+    @Test
+    public void importTerminatorIsNeverPromotedByExportException() {
+        byte[] b = new byte[48];
+        word(b, 0, IopIrxFormat.IMPORT_MAGIC);
+        System.arraycopy("sysmem".getBytes(), 0, b, 12, 6);
+        word(b, 20, 0);
+        word(b, 24, 0x5dc);
+        assertNull(IopIrxFormat.readLibrary(b, 0, true));
+    }
+
+    @Test
     public void validatesImportAndExportTerminators() {
         byte[] b = new byte[128];
         word(b, 0, IopIrxFormat.IMPORT_MAGIC);

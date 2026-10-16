@@ -215,6 +215,26 @@ public class IopIrxElfLoader extends ElfLoader {
                     monitor.checkCancelled();
                 }
                 IopIrxFormat.Library lib = IopIrxFormat.readLibrary(bytes, pos);
+                if (lib == null && name.equals(".text") &&
+                        (bytes[pos] & 255) == 0 && (bytes[pos + 1] & 255) == 0 &&
+                        (bytes[pos + 2] & 255) == 0xc0 &&
+                        (bytes[pos + 3] & 255) == 0x41 &&
+                        (long) pos + 28 <= bytes.length) {
+                    // Some original IRXs export their entry routine at offset
+                    // zero. The 0 value in the first export cell is NOT a
+                    // terminator when that cell has an R_MIPS_32 relocation.
+                    // Corroborate it against the Ghidra relocation table
+                    // before enabling the exceptional parser behavior.
+                    Address firstExport = block.getStart().add(pos + 20L);
+                    if (hasFirstZeroExportRelocation(program, firstExport)) {
+                        lib = IopIrxFormat.readLibrary(bytes, pos, true);
+                        if (lib != null) {
+                            log.appendMsg("IOP IRX: preserved relocated zero-offset " +
+                                "export ordinal 0 for library " + lib.name +
+                                " at " + firstExport);
+                        }
+                    }
+                }
                 if (lib == null) {
                     continue;
                 }
@@ -260,6 +280,22 @@ public class IopIrxElfLoader extends ElfLoader {
         program.getOptions(OPT).setInt("Export tables recognized", exports);
         log.appendMsg("IOP IRX: " + imports + " import and " + exports +
             " export tables recognized (unresolved imports are not falsely linked)");
+    }
+
+    /**
+     * R_MIPS_32 (=2) at the first export slot proves that a zero-valued
+     * unrelocated address is a valid export, rather than a terminator.
+     * Failed/partial relocation application does not erase the evidence.
+     */
+    private static boolean hasFirstZeroExportRelocation(Program program,
+            Address address) {
+        for (Relocation relocation :
+                program.getRelocationTable().getRelocations(address)) {
+            if (relocation.getType() == 2) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static void applyLinkerSymbols(Program program,

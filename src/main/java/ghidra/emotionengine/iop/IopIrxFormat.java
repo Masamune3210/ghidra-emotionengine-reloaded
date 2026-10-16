@@ -107,6 +107,20 @@ public final class IopIrxFormat {
      * exports = pointer words terminated by zero.
      */
     public static Library readLibrary(byte[] b, int start) {
+        return readLibrary(b, start, false);
+    }
+
+    /**
+     * The first export can point to offset zero in a Sony relocatable module.
+     * On disk that entry is zero and carries an R_MIPS_32 relocation, just
+     * like the later nonzero entries. A plain zero is otherwise the export
+     * terminator. Callers may permit a leading zero ONLY after independently
+     * verifying the R_MIPS_32 relocation at that exact first export slot.
+     *
+     * Do not enable this for import stubs; their {0,0} terminator is strict.
+     */
+    public static Library readLibrary(byte[] b, int start,
+            boolean allowRelocatedZeroFirstExport) {
         if (b == null || start < 0 || (start & 3) != 0 ||
                 (long) start + 24 > b.length) {
             return null;
@@ -142,6 +156,21 @@ public final class IopIrxFormat {
                 return null;
             }
             int first = u32(b, at);
+            if (first == 0 && !imported && values.isEmpty() &&
+                    allowRelocatedZeroFirstExport) {
+                // Require a subsequent aligned nonzero target. This avoids
+                // accepting a vacant table even if the caller is mistaken.
+                if ((long) at + 8 > b.length) {
+                    return null;
+                }
+                int next = u32(b, at + 4);
+                if (next == 0 || (next & 3) != 0) {
+                    return null;
+                }
+                values.add(0);
+                at += 4;
+                continue;
+            }
             if (first == 0) {
                 if (imported && u32(b, at + 4) != 0) {
                     return null;
