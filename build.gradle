@@ -172,6 +172,7 @@ tasks.register('compileCccAuditScripts', JavaCompile) {
         include 'AuditIopIrxModuleMetadata_20261012_v3.java'
         include 'AuditDeckardApuDecode_20261015_v1.java'
         include 'RecoverDeckardApuWrappers_20261015_v2.java'
+        include 'VerifyCcc2FunctionBody_20261018_v1.java'
     }
     classpath = sourceSets.main.compileClasspath
     destinationDirectory = layout.buildDirectory.dir('compiledCccAuditScripts')
