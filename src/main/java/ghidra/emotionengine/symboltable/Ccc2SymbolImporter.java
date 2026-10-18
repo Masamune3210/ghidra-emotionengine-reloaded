@@ -870,6 +870,35 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
         }
     }
 
+    // CCC's .mdebug layout can carry pre-link positions for functions moved
+    // into another section by the linker. When the ELF loader has independently
+    // imported an address for the same name, do not create/update a function
+    // at the contradictory CCC address. With no such symbol, keep CCC's normal
+    // behavior for stripped executables and CCC-only local functions.
+    static boolean conflictingImportedFunctionAddress(boolean exactMatch, boolean otherMatch) {
+        return otherMatch && !exactMatch;
+    }
+
+    private boolean conflictsWithImportedFunctionSymbol(Address address, String name) {
+        boolean exactMatch = false;
+        boolean otherMatch = false;
+        var symbols = program.getSymbolTable().getSymbols(name);
+        while (symbols.hasNext()) {
+            Symbol nativeSymbol = symbols.next();
+            if (nativeSymbol.getSource() != SourceType.IMPORTED) continue;
+            // ELF imports may produce a LABEL before Function discovery runs.
+            if (nativeSymbol.getSymbolType() != ghidra.program.model.symbol.SymbolType.LABEL &&
+                nativeSymbol.getSymbolType() != ghidra.program.model.symbol.SymbolType.FUNCTION) {
+                continue;
+            }
+            Address nativeAddress = nativeSymbol.getAddress();
+            if (program.getMemory().getBlock(nativeAddress) == null) continue;
+            if (nativeAddress.equals(address)) exactMatch = true;
+            else otherMatch = true;
+        }
+        return conflictingImportedFunctionAddress(exactMatch, otherMatch);
+    }
+
     private void importFunctions() {
         JsonArray functions = array(database, "functions");
         JsonArray parameters = array(database, "parameter_variables");
@@ -881,6 +910,10 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
             Address address = mappedAddress(symbol);
             String name = string(symbol, "name");
             if (address == null || name.isBlank()) { skip("unmapped/unnamed functions", name + " / address=" + string(symbol, "address")); continue; }
+            if (conflictsWithImportedFunctionSymbol(address, name)) {
+                skip("CCC address conflicts with ELF symbol", name + " at " + address);
+                continue;
+            }
             try {
                 Function function = program.getFunctionManager().getFunctionAt(address);
                 if (function == null) {
