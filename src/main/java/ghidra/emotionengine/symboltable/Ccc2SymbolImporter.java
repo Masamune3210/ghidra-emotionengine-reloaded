@@ -894,7 +894,11 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
                             body = new AddressSet(address, last);
                         }
                     }
-                    CreateFunctionCmd cmd = new CreateFunctionCmd(body, SourceType.ANALYSIS);
+                    // This overload accepts a function body and a single entry point.
+                    // CreateFunctionCmd(AddressSetView, SourceType) instead treats EVERY
+                    // address in the set as a separate entry and creates byte-sized
+                    // functions throughout the CCC-reported range.
+                    CreateFunctionCmd cmd = new CreateFunctionCmd(name, address, body, SourceType.ANALYSIS);
                     if (!cmd.applyTo(program, monitor)) { skip("function creation", name + " at " + address); continue; }
                     function = program.getFunctionManager().getFunctionAt(address);
                 }
