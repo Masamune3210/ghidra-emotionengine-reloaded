@@ -11,17 +11,23 @@ import org.junit.Test;
 public class Ccc2FunctionAddressGuardTest {
     @Test
     public void preservesAnExactLinkedSymbolEvenWithOtherSameNamedFunctions() {
-        assertFalse(Ccc2SymbolImporter.conflictingImportedFunctionAddress(true, true));
-        assertFalse(Ccc2SymbolImporter.conflictingImportedFunctionAddress(true, false));
+        assertFalse(Ccc2SymbolImporter.conflictingImportedFunctionAddress(true, true, true));
+        assertFalse(Ccc2SymbolImporter.conflictingImportedFunctionAddress(true, false, false));
     }
 
     @Test
     public void rejectsCccAddressContradictedByTheLinkedElf() {
-        assertTrue(Ccc2SymbolImporter.conflictingImportedFunctionAddress(false, true));
+        assertTrue(Ccc2SymbolImporter.conflictingImportedFunctionAddress(false, true, false));
+    }
+
+    @Test
+    public void protectsExistingImportedFunctionAgainstUnrelatedCccMetadata() {
+        assertTrue(Ccc2SymbolImporter.conflictingImportedFunctionAddress(false, false, true));
+        assertFalse(Ccc2SymbolImporter.conflictingImportedFunctionAddress(true, false, true));
     }
 
     @Test
     public void preservesCccOnlyAndStrippedElfFunctions() {
-        assertFalse(Ccc2SymbolImporter.conflictingImportedFunctionAddress(false, false));
+        assertFalse(Ccc2SymbolImporter.conflictingImportedFunctionAddress(false, false, false));
     }
 }
