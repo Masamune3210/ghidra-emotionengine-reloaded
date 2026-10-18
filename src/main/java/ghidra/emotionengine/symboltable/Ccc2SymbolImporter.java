@@ -875,8 +875,11 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
     // imported an address for the same name, do not create/update a function
     // at the contradictory CCC address. With no such symbol, keep CCC's normal
     // behavior for stripped executables and CCC-only local functions.
-    static boolean conflictingImportedFunctionAddress(boolean exactMatch, boolean otherMatch) {
-        return otherMatch && !exactMatch;
+    static boolean conflictingImportedFunctionAddress(
+            boolean exactMatch, boolean otherMatch, boolean differentImportedFunctionAtAddress) {
+        // An exact linked alias at the requested entry permits a valid CCC
+        // function even when another symbol of that name exists elsewhere.
+        return !exactMatch && (otherMatch || differentImportedFunctionAtAddress);
     }
 
     private boolean conflictsWithImportedFunctionSymbol(Address address, String name) {
@@ -896,7 +899,15 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
             if (nativeAddress.equals(address)) exactMatch = true;
             else otherMatch = true;
         }
-        return conflictingImportedFunctionAddress(exactMatch, otherMatch);
+        // Even when a CCC-only name has no native ELF counterpart, do not
+        // attach its signature and locals to a *different*, already imported
+        // linked function at this address.
+        Function linkedFunction = program.getFunctionManager().getFunctionAt(address);
+        boolean differentImportedFunctionAtAddress = linkedFunction != null &&
+            linkedFunction.getSymbol().getSource() == SourceType.IMPORTED &&
+            !name.equals(linkedFunction.getName());
+        return conflictingImportedFunctionAddress(
+            exactMatch, otherMatch, differentImportedFunctionAtAddress);
     }
 
     private void importFunctions() {
