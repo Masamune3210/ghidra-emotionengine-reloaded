@@ -1,5 +1,7 @@
 # CCC 2.x function creation regression
 
+**Integration:** Merged into `testing` via PR #2 (merge commit `0019aee4`). Source and prior 12.1.x CI tests were verified; runtime reimport of the additional imported-symbol guard remains pending.
+
 Branch: `note-working/ccc2-function-creation-20261018`  
 Base: `testing` at `450e76e45830e181d057e5a71bf2d23dc5d13142`  
 Scope: Fix CCC v13-v15 JSON importer function creation in the Emotion Engine Ghidra extension without weakening EE/IOP detection or overwriting existing Ghidra database state.

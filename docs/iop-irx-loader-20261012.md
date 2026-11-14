@@ -1,5 +1,7 @@
 # IOP IRX loader work (2026-10-12)
 
+**Integration:** The remaining PS2 ILP32 builtin-recovery commits from `note-working/iop-irx-loader` have been incorporated into `testing`, preserving the newer IOP-vs-EE recognition changes. Full TESTSPU runtime verification remains outstanding.
+
 ## Why this branch exists
 
 SECRMAN imported through the generic ELF loader as MIPS64 Release 6 even though it is PS2 IOP (R3000A-derived) code. Existing R5900 support targets Emotion Engine ELFs, not IOP IRX/SRX. This branch starts from testing (abe68307bd679fab1b94471ec513884b0dd8d590), preserving its EE/IOP memory-map separation.
@@ -42,3 +44,12 @@ Sources: PS2SDK iop/kernel/include/irx.h (import/export layouts and magic); orig
 - The EE `r5900.opinion` secondary mask now requires the R5900 machine variant (`0x00920000`) in addition to the previously required MIPS-III/ABI bits. Without the 5900 marker, generic MIPS ELF files cannot be selected as R5900 by this opinion.
 - Regression tests cover both valid IOP types, exclusion of both EE relocatable types, contradictory R5900 flags, and unrelated MIPS machine variants.
 - Scope: these rules govern specialized EE/IOP recognition; Ghidra's independent generic ELF loader can still list its own candidate. Existing Ghidra programs are not migrated by changing import rules. Runtime Ghidra Batch Import and Gradle tests still need verification against the rebuilt extension.
+
+## TESTSPU unresolved signedness/size follow-up (2026-10-12)
+
+- The crash fix allowed STABS to proceed; Ghidra now logged two unresolved builtins, `unsigned int` and `long unsigned int`, each with `size_bits=-1`, and previously degraded them to `undefined1`.
+- Reviewed `chaoticgd/ccc` stdump v1.2.1 `ccc/stabs.cpp`: `classify_range` recognizes a fixed list of exact numeric ranges, otherwise returns `UNKNOWN_PROBABLY_ARRAY`, serialized as `"error"` and with size unavailable. Without the raw TESTSPU STABS ranges, the exact range mismatch cannot be pinpointed.
+- Added conservative type recovery *only* for those two exact C names on 32-bit PS2 ABI imports (`r5900:LE:32:default` or `MIPS:LE:32:default` with four-byte pointers): both are known 32-bit unsigned integers under ILP32. Explicit sizes other than unknown (-1) or 32 are rejected. Unrecognized names retain the `undefined1` fallback. Each recovered type produces a clear STABS log.
+- Added regression tests for both recoverable names, an explicit contradictory 64-bit size, unrelated names and null.
+- The fix does not change an existing Ghidra database retroactively. Use a fresh TESTSPU import to verify correct recovered builtins; if retaining existing work, rerun STABS manually with caution around the "Only Run Once" guard and possible datatype conflicts.
+- Verification: source review and committed tests; **no successful Gradle build or Ghidra runtime rerun yet**. The current TESTSPU language ID is unknown; if it is an R6 mis-selection the ABI-gated recovery will intentionally *not* fire until language selection is corrected.

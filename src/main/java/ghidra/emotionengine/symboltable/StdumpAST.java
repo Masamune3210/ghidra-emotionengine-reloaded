@@ -49,6 +49,7 @@ public class StdumpAST {
 		TaskMonitor monitor;
 		MessageLog log;
 		DataTypeManager programTypeManager = null;
+		boolean ps2Ilp32Abi = false; // A 32-bit PS2 EE/IOP ABI, not arbitrary MIPS ELF.
 	}
 	
 	public static enum StorageClass {
@@ -203,6 +204,13 @@ public class StdumpAST {
 			case FLOAT_128:
 				return UnsignedInteger16DataType.dataType;
 			case UNKNOWN_PROBABLY_ARRAY:
+				BuiltInClass recovered = importer.ps2Ilp32Abi ?
+					recoverPs2Ilp32Unknown(name, sizeBits) : BuiltInClass.UNKNOWN_PROBABLY_ARRAY;
+				if(recovered == BuiltInClass.UNSIGNED_32) {
+					importer.log.appendMsg("STABS", "Recovered unresolved builtin (" + name +
+						") as uint32_t using the PS2 ILP32 ABI; stdump size_bits=" + sizeBits + ".");
+					return UnsignedIntegerDataType.dataType;
+				}
 				importer.log.appendMsg("STABS", "stdump returned an unresolved builtin" +
 					(name != null ? " (" + name + ")" : "") +
 					" with size_bits=" + sizeBits + "; keeping undefined1 instead of guessing a type.");
@@ -210,6 +218,22 @@ public class StdumpAST {
 			}
 			importer.log.appendMsg("STABS", "Bad builtin type created.");
 			return Undefined1DataType.dataType;
+		}
+
+		/**
+		 * stdump 1.2.1 can report a builtin with class="error" and
+		 * size_bits=-1 when its STABS range is not recognized. Recover only
+		 * exact C names whose size and signedness are fixed by the PS2 ILP32 ABI.
+		 * Keep unfamiliar names and contradictory sizes unresolved.
+		 */
+		static BuiltInClass recoverPs2Ilp32Unknown(String name, int sizeBits) {
+			if(sizeBits != -1 && sizeBits != 32) {
+				return BuiltInClass.UNKNOWN_PROBABLY_ARRAY;
+			}
+			if("unsigned int".equals(name) || "long unsigned int".equals(name)) {
+				return BuiltInClass.UNSIGNED_32;
+			}
+			return BuiltInClass.UNKNOWN_PROBABLY_ARRAY;
 		}
 	}
 	
