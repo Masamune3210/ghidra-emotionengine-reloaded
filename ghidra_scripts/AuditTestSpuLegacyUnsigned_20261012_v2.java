@@ -18,7 +18,7 @@ public class AuditTestSpuLegacyUnsigned_20261012_v2 extends GhidraScript {
     private DataType datatype(String name) throws CancelledException {
         Iterator<DataType> types = currentProgram.getDataTypeManager().getAllDataTypes();
         while (types.hasNext()) {
-            monitor.checkCanceled();
+            monitor.checkCancelled();
             DataType current = types.next();
             if (name.equals(current.getName())) return current;
         }

@@ -37,7 +37,7 @@ public class AuditCccBitfieldLayouts_20261012_v1 extends GhidraScript {
 
         Iterator<DataType> types = dtm.getAllDataTypes();
         while (types.hasNext()) {
-            monitor.checkCanceled();
+            monitor.checkCancelled();
             DataType dt = types.next();
             if (!(dt instanceof Composite)) continue;
             Composite composite = (Composite) dt;
