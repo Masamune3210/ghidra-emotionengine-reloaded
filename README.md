@@ -16,6 +16,11 @@ Release builds are available on the [releases](https://github.com/chaoticgd/ghid
 
 ## Building
 
+For Ghidra 12.2 use **JDK 25 or newer** and **Gradle 9.1 or newer**.
+The `testing` branch includes a dedicated Ghidra 12.2 CI build for Java
+compilation, script checks, DECKARD SLEIGH compilation and extension packaging.
+A successful build does not substitute for testing import/analysis in the 12.2 GUI.
+
 If you want to build the extension yourself, install `gradle` and run:
  
 ```
