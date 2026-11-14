@@ -870,6 +870,46 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
         }
     }
 
+    // CCC's .mdebug layout can carry pre-link positions for functions moved
+    // into another section by the linker. When the ELF loader has independently
+    // imported an address for the same name, do not create/update a function
+    // at the contradictory CCC address. With no such symbol, keep CCC's normal
+    // behavior for stripped executables and CCC-only local functions.
+    static boolean conflictingImportedFunctionAddress(
+            boolean exactMatch, boolean otherMatch, boolean differentImportedFunctionAtAddress) {
+        // An exact linked alias at the requested entry permits a valid CCC
+        // function even when another symbol of that name exists elsewhere.
+        return !exactMatch && (otherMatch || differentImportedFunctionAtAddress);
+    }
+
+    private boolean conflictsWithImportedFunctionSymbol(Address address, String name) {
+        boolean exactMatch = false;
+        boolean otherMatch = false;
+        var symbols = program.getSymbolTable().getSymbols(name);
+        while (symbols.hasNext()) {
+            Symbol nativeSymbol = symbols.next();
+            if (nativeSymbol.getSource() != SourceType.IMPORTED) continue;
+            // ELF imports may produce a LABEL before Function discovery runs.
+            if (nativeSymbol.getSymbolType() != ghidra.program.model.symbol.SymbolType.LABEL &&
+                nativeSymbol.getSymbolType() != ghidra.program.model.symbol.SymbolType.FUNCTION) {
+                continue;
+            }
+            Address nativeAddress = nativeSymbol.getAddress();
+            if (program.getMemory().getBlock(nativeAddress) == null) continue;
+            if (nativeAddress.equals(address)) exactMatch = true;
+            else otherMatch = true;
+        }
+        // Even when a CCC-only name has no native ELF counterpart, do not
+        // attach its signature and locals to a *different*, already imported
+        // linked function at this address.
+        Function linkedFunction = program.getFunctionManager().getFunctionAt(address);
+        boolean differentImportedFunctionAtAddress = linkedFunction != null &&
+            linkedFunction.getSymbol().getSource() == SourceType.IMPORTED &&
+            !name.equals(linkedFunction.getName());
+        return conflictingImportedFunctionAddress(
+            exactMatch, otherMatch, differentImportedFunctionAtAddress);
+    }
+
     private void importFunctions() {
         JsonArray functions = array(database, "functions");
         JsonArray parameters = array(database, "parameter_variables");
@@ -881,6 +921,10 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
             Address address = mappedAddress(symbol);
             String name = string(symbol, "name");
             if (address == null || name.isBlank()) { skip("unmapped/unnamed functions", name + " / address=" + string(symbol, "address")); continue; }
+            if (conflictsWithImportedFunctionSymbol(address, name)) {
+                skip("CCC address conflicts with ELF symbol", name + " at " + address);
+                continue;
+            }
             try {
                 Function function = program.getFunctionManager().getFunctionAt(address);
                 if (function == null) {
@@ -894,7 +938,11 @@ public class Ccc2SymbolImporter extends FlatProgramAPI {
                             body = new AddressSet(address, last);
                         }
                     }
-                    CreateFunctionCmd cmd = new CreateFunctionCmd(body, SourceType.ANALYSIS);
+                    // This overload accepts a function body and a single entry point.
+                    // CreateFunctionCmd(AddressSetView, SourceType) instead treats EVERY
+                    // address in the set as a separate entry and creates byte-sized
+                    // functions throughout the CCC-reported range.
+                    CreateFunctionCmd cmd = new CreateFunctionCmd(name, address, body, SourceType.ANALYSIS);
                     if (!cmd.applyTo(program, monitor)) { skip("function creation", name + " at " + address); continue; }
                     function = program.getFunctionManager().getFunctionAt(address);
                 }
