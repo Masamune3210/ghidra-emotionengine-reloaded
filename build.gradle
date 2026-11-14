@@ -80,6 +80,12 @@ def stdumpBinaries = [
     [platform: 'mac_arm_64', archive: 'mac', executable: 'stdump', property: 'cccStdumpSha256Mac'],
     [platform: 'win_x86_64', archive: 'windows', executable: 'stdump.exe', property: 'cccStdumpSha256Windows']
 ]
+// Capture all project-derived inputs during configuration, before task actions execute.
+def stdumpRoot = file('os')
+def useLocalCcc2Stdump = providers.gradleProperty('useLocalCcc2Stdump').isPresent()
+def stdumpHashes = stdumpBinaries.collectEntries { spec ->
+    [(spec.property): providers.gradleProperty(spec.property).orNull]
+}
 
 tasks.register('prepareStdump') {
     group = 'build'
@@ -87,15 +93,15 @@ tasks.register('prepareStdump') {
 
     doLast {
         stdumpBinaries.each { spec ->
-            File destination = file("os/${spec.platform}/${spec.executable}")
-            File stamp = file("os/${spec.platform}/stdump.version")
+            File destination = new File(stdumpRoot, "${spec.platform}/${spec.executable}")
+            File stamp = new File(stdumpRoot, "${spec.platform}/stdump.version")
             if (destination.isFile() && destination.length() > 0 &&
-                    (project.hasProperty('useLocalCcc2Stdump') ||
+                    (useLocalCcc2Stdump ||
                      (stamp.isFile() && stamp.text.trim() == stdumpVersion))) {
                 logger.lifecycle("Using CCC 2.x stdump at ${destination}")
                 return
             }
-            if (project.hasProperty('useLocalCcc2Stdump')) {
+            if (useLocalCcc2Stdump) {
                 throw new GradleException("Missing preinstalled CCC 2.x executable: ${destination}")
             }
 
@@ -120,7 +126,7 @@ tasks.register('prepareStdump') {
                     while ((count = input.read(buffer)) != -1) digest.update(buffer, 0, count)
                 }
                 String actual = digest.digest().encodeHex().toString()
-                String expected = project.findProperty(spec.property)?.toString()?.trim()
+                String expected = stdumpHashes[spec.property]?.toString()?.trim()
                 if (expected && !actual.equalsIgnoreCase(expected)) {
                     throw new GradleException("SHA-256 mismatch for ${archiveName}: ${actual}")
                 }
